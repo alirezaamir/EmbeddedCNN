@@ -12,6 +12,8 @@ void fill_map(float *data, int size, int depth);
 
 void fill_filter(float *filter, int depth, int n);
 
+void fill_skip(float *filter, int size, int depth);
+
 void conv1d(const float *data, const float *filter, float *map_out,
             int input_len, int input_depth, int n_filter);
 
@@ -54,6 +56,12 @@ void fill_map(float *data, int size, int depth) {
 void fill_filter(float *filter, int depth, int n) {
     for (int i = 0; i < FILTER_SIZE * depth * n; ++i)
         filter[i] = (float) (rand() % 17 - 8);
+}
+
+void fill_skip(float *filter, int size, int depth){
+    for (int i = 0; i < size * depth; ++i) {
+        filter[i] = (float) (rand() % 17 - 8);
+    }
 }
 
 void conv1d(const float *data, const float *filter, float *map_out,
@@ -143,12 +151,16 @@ void forward_propagation(float *data) {
 
     // Decoder
     float * decoder_layers_out;
-    for (int layer = 8; layer >0; layer--) {
+    float * skip;
+    for (int layer = 7; layer >0; layer--) {
         printf("Decoder Layer %d\n", layer);
         decoder_layers_out = (float *) malloc(map_size[layer - 1] * depth_size[layer - 1] * sizeof(float));
         filter = (float *) malloc(FILTER_SIZE * depth_size[layer] * depth_size[layer - 1] * sizeof(float));
+        skip = (float *) malloc(map_size[layer - 1] * depth_size[layer - 1] * sizeof(float));
         fill_filter(filter, depth_size[layer], depth_size[layer - 1]);
         deconv1d(layer_in, filter, decoder_layers_out, map_size[layer], depth_size[layer], depth_size[layer - 1]);
+        fill_skip(skip, map_size[layer - 1], depth_size[layer - 1]);
+        skip_add(encoder_layers_out[layer -1], skip, decoder_layers_out, map_size[layer - 1], depth_size[layer - 1]);
         layer_in = decoder_layers_out;
         free(filter);
     }
