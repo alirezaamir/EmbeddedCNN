@@ -18,6 +18,9 @@ void conv1d(const float *data, const float *filter, float *map_out,
 void deconv1d(float *data, const float *filter, float *map_out,
               int input_len, int input_depth, int n_filter);
 
+void skip_add(float *data, float *filter, float *map_out,
+              int input_len, int input_depth);
+
 void forward_propagation(float *data);
 // =================================================================================
 
@@ -103,6 +106,19 @@ void deconv1d(float *data, const float *filter, float *map_out,
             mem2d(map_out, input_len >> 1, w_n, start_index >> 1) = sum;
         }
     }
+}
+
+
+void skip_add(float *data, float *filter, float *map_out,
+              int input_len, const int input_depth){
+    for (int w_j = 0; w_j < input_depth; w_j++) {
+        for (int w_i = 0; w_i < input_len; w_i++) {
+            float add = mem2d(data, input_len, w_j, w_i) * mem2d(filter, input_len, w_j, w_i);
+            mem2d(map_out, input_len, w_j, w_i) += add;
+        }
+    }
+    free(data);
+    free(filter);
 }
 
 void forward_propagation(float *data) {
