@@ -1,8 +1,7 @@
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
-#include <math.h>
 #include "gan.h"
+//#include "gan.c"
 
 #define FILTER_SIZE 31
 
@@ -40,7 +39,6 @@ int main() {
     // fill a, b matrices with random values between -16.0f and 16.0f
 //    srand(0);
     fill_map(eeg_input, in_len, 1);
-    printf("EpilepsyGAN!\n");
     forward_propagation(eeg_input);
     free(eeg_input);
     return 0;
@@ -59,9 +57,8 @@ void fill_filter(float *filter, int depth, int n) {
 }
 
 void fill_skip(float *filter, int size, int depth){
-    for (int i = 0; i < size * depth; ++i) {
+    for (int i = 0; i < size * depth; ++i)
         filter[i] = (float) (rand() % 17 - 8);
-    }
 }
 
 void conv1d(const float *data, const float *filter, float *map_out,
@@ -117,6 +114,17 @@ void deconv1d(float *data, const float *filter, float *map_out,
 }
 
 
+void concatenate(const float* data, const float* z, float* map_out,
+                 int input_len, int input_depth){
+    for (int w_j = 0; w_j < input_depth; w_j++) {
+        for (int w_i = 0; w_i < input_len; w_i++) {
+            mem2d(map_out, input_len, w_j, w_i) = mem2d(data, input_len, w_j, w_i);
+            mem2d(map_out, input_len, w_j+input_depth, w_i) = mem2d(z, input_len, w_j, w_i);
+        }
+    }
+}
+
+
 void skip_add(float *data, float *filter, float *map_out,
               int input_len, const int input_depth){
     for (int w_j = 0; w_j < input_depth; w_j++) {
@@ -130,8 +138,7 @@ void skip_add(float *data, float *filter, float *map_out,
 }
 
 void forward_propagation(float *data) {
-    printf("Forward Propagation!\n");
-    float *encoder_layers_out[10] = {0};
+    float *encoder_layers_out[8] = {0};
     int depth_size[9] = {1, 64, 64, 128, 128, 256, 256, 512, 1024};
     int map_size[9] = {2048, 1024, 512, 256, 128, 64, 32, 16, 8};
 
@@ -148,6 +155,10 @@ void forward_propagation(float *data) {
         layer_in = encoder_layers_out[layer];
         free(filter);
     }
+
+    // Concatenation
+    layer_in = (float *) malloc(map_size[8] * depth_size[8] * 2 * sizeof(float));
+    concatenate(encoder_layers_out[7], Z_array, layer_in, map_size[8], depth_size[8]);
 
     // Decoder
     float * decoder_layers_out;
