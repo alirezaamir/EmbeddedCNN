@@ -9,7 +9,7 @@
 // ===========================> Functions Prototype <===============================
 void fill_map(float *data, int size, int depth);
 
-void fill_filter(float *filter, int layer_num);
+void fill_filter(float *filter, int depth, int n);
 void fill_dec(float *filter, int layer_num);
 
 void fill_skip(float *filter, int size, int depth);
@@ -39,9 +39,10 @@ int main() {
 
     // fill a, b matrices with random values between -16.0f and 16.0f
 //    srand(0);
-    fill_map(eeg_input, in_len, 1);
+//    fill_map(eeg_input, in_len, 1);
+    eeg_input = input_array;
     forward_propagation(eeg_input);
-    free(eeg_input);
+//    free(eeg_input);
     return 0;
 }
 
@@ -53,10 +54,9 @@ void fill_map(float *data, int size, int depth) {
 data = input_array;
 }
 
-void fill_filter(float *filter, int layer_num) {
-//    for (int i = 0; i < FILTER_SIZE * depth * n; ++i)
-//        filter[i] = (float) (rand() % 17 - 8);
-filter = enc_w[layer_num];
+void fill_filter(float *filter, int depth, int n) {
+    for (int i = 0; i < FILTER_SIZE * depth * n; ++i)
+        filter[i] = (float) (rand() % 17 - 8);
 }
 
 void fill_dec(float *filter, int layer_num){
@@ -144,6 +144,16 @@ void skip_add(float *data, float *filter, float *map_out,
 //    free(filter);
 }
 
+
+void save_file(float* data, int input_len){
+    FILE *fp;
+    fp = fopen("output.txt","w");
+    for (int wi=0; wi<input_len; wi++)
+        fprintf(fp,"%f\n",data[wi]);
+
+    fclose(fp);
+}
+
 void forward_propagation(float *data) {
     float *encoder_layers_out[8] = {0};
     int depth_size[9] = {1, 64, 64, 128, 128, 256, 256, 512, 1024};
@@ -156,9 +166,6 @@ void forward_propagation(float *data) {
     for (int layer = 0; layer < 2; layer++) {
         printf("Encoder Layer %d\n", layer);
         encoder_layers_out[layer] = (float *) malloc(map_size[layer + 1] * depth_size[layer + 1] * sizeof(float));
-//        filter = (float *) malloc(FILTER_SIZE * depth_size[layer] * depth_size[layer + 1] * sizeof(float));
-//        fill_filter(filter, depth_size[layer], depth_size[layer + 1]);
-//        fill_filter(filter, layer);
         filter = enc_w[layer];
         conv1d(layer_in, filter, encoder_layers_out[layer], map_size[layer], depth_size[layer], depth_size[layer + 1]);
         layer_in = encoder_layers_out[layer];
@@ -175,19 +182,16 @@ void forward_propagation(float *data) {
     for (int layer = 1; layer >=0; layer--) {
         printf("Decoder Layer %d\n", layer);
         decoder_layers_out = (float *) malloc(map_size[layer] * depth_size[layer] * sizeof(float));
-//        filter = (float *) malloc(FILTER_SIZE * depth_size[layer] * depth_size[layer - 1] * sizeof(float));
-        skip = (float *) malloc(map_size[layer] * depth_size[layer] * sizeof(float));
-//        fill_filter(filter, depth_size[layer], depth_size[layer - 1]);
-//        fill_filter(filter, 2 - layer);
-//        fill_dec(filter, 2-layer);
         filter = dec_w[1 - layer];
         deconv1d(layer_in, filter, decoder_layers_out, map_size[layer+1], depth_size[layer+1], depth_size[layer]);
         if (layer != 0) {
-            fill_skip(skip, map_size[layer], depth_size[layer]);
+            skip = A_w[layer-1];
             skip_add(encoder_layers_out[layer], skip, decoder_layers_out, map_size[layer],
                      depth_size[layer]);
         }
         layer_in = decoder_layers_out;
 //        free(filter);
     }
+
+    save_file(layer_in, map_size[0]);
 }

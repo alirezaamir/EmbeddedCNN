@@ -9,7 +9,7 @@
 // data is a 2-dimensional matrix implemented as 1-dimensional array
 // data[y][x] == data[ y * q + x ]
 
-#define mem3d(filter,filter_len,filter_depth,n,k,i)   filter[(n*filter_depth+k)*filter_len+i]
+#define mem3d(filter,filter_len,filter_depth,n,k,i)   filter[((n)*(filter_depth)+(k))*(filter_len)+(i)]
 
 extern float Z_array[];
 extern float* enc_w[2];
