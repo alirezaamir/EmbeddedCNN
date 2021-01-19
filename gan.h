@@ -11,7 +11,10 @@
 
 #define mem3d(filter,filter_len,filter_depth,n,k,i)   filter[(n*filter_depth+k)*filter_len+i]
 
-float* get_z_array(void);
 extern float Z_array[];
+extern float* enc_w[2];
+extern float* dec_w[2];
+extern float* A_w[2];
+extern float input_array[];
 
 #endif //EPILEPSYGAN_GAN_H

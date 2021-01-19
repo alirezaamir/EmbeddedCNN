@@ -9,7 +9,8 @@
 // ===========================> Functions Prototype <===============================
 void fill_map(float *data, int size, int depth);
 
-void fill_filter(float *filter, int depth, int n);
+void fill_filter(float *filter, int layer_num);
+void fill_dec(float *filter, int layer_num);
 
 void fill_skip(float *filter, int size, int depth);
 
@@ -46,14 +47,20 @@ int main() {
 
 
 void fill_map(float *data, int size, int depth) {
-    for (int i = 0; i < size * depth; ++i) {
-        data[i] = (float) (rand() % 17 - 8);
-    }
+//    for (int i = 0; i < size * depth; ++i) {
+//        data[i] = (float) (rand() % 17 - 8);
+//    }
+data = input_array;
 }
 
-void fill_filter(float *filter, int depth, int n) {
-    for (int i = 0; i < FILTER_SIZE * depth * n; ++i)
-        filter[i] = (float) (rand() % 17 - 8);
+void fill_filter(float *filter, int layer_num) {
+//    for (int i = 0; i < FILTER_SIZE * depth * n; ++i)
+//        filter[i] = (float) (rand() % 17 - 8);
+filter = enc_w[layer_num];
+}
+
+void fill_dec(float *filter, int layer_num){
+    filter = dec_w[layer_num];
 }
 
 void fill_skip(float *filter, int size, int depth){
@@ -92,7 +99,7 @@ void deconv1d(float *data, const float *filter, float *map_out,
         else
             upsampled[i] = 0;
     }
-    free(data);
+//    free(data);
 
     // Convolution
     float sum;
@@ -133,8 +140,8 @@ void skip_add(float *data, float *filter, float *map_out,
             mem2d(map_out, input_len, w_j, w_i) += add;
         }
     }
-    free(data);
-    free(filter);
+//    free(data);
+//    free(filter);
 }
 
 void forward_propagation(float *data) {
@@ -146,33 +153,41 @@ void forward_propagation(float *data) {
     float *layer_in = data;
 
     // Encoder
-    for (int layer = 0; layer < 8; layer++) {
+    for (int layer = 0; layer < 2; layer++) {
         printf("Encoder Layer %d\n", layer);
         encoder_layers_out[layer] = (float *) malloc(map_size[layer + 1] * depth_size[layer + 1] * sizeof(float));
-        filter = (float *) malloc(FILTER_SIZE * depth_size[layer] * depth_size[layer + 1] * sizeof(float));
-        fill_filter(filter, depth_size[layer], depth_size[layer + 1]);
+//        filter = (float *) malloc(FILTER_SIZE * depth_size[layer] * depth_size[layer + 1] * sizeof(float));
+//        fill_filter(filter, depth_size[layer], depth_size[layer + 1]);
+//        fill_filter(filter, layer);
+        filter = enc_w[layer];
         conv1d(layer_in, filter, encoder_layers_out[layer], map_size[layer], depth_size[layer], depth_size[layer + 1]);
         layer_in = encoder_layers_out[layer];
-        free(filter);
+//        free(filter);
     }
 
     // Concatenation
-    layer_in = (float *) malloc(map_size[8] * depth_size[8] * 2 * sizeof(float));
-    concatenate(encoder_layers_out[7], Z_array, layer_in, map_size[8], depth_size[8]);
+//    layer_in = (float *) malloc(map_size[8] * depth_size[8] * 2 * sizeof(float));
+//    concatenate(encoder_layers_out[7], Z_array, layer_in, map_size[8], depth_size[8]);
 
     // Decoder
     float * decoder_layers_out;
     float * skip;
-    for (int layer = 7; layer >0; layer--) {
+    for (int layer = 1; layer >=0; layer--) {
         printf("Decoder Layer %d\n", layer);
-        decoder_layers_out = (float *) malloc(map_size[layer - 1] * depth_size[layer - 1] * sizeof(float));
-        filter = (float *) malloc(FILTER_SIZE * depth_size[layer] * depth_size[layer - 1] * sizeof(float));
-        skip = (float *) malloc(map_size[layer - 1] * depth_size[layer - 1] * sizeof(float));
-        fill_filter(filter, depth_size[layer], depth_size[layer - 1]);
-        deconv1d(layer_in, filter, decoder_layers_out, map_size[layer], depth_size[layer], depth_size[layer - 1]);
-        fill_skip(skip, map_size[layer - 1], depth_size[layer - 1]);
-        skip_add(encoder_layers_out[layer -1], skip, decoder_layers_out, map_size[layer - 1], depth_size[layer - 1]);
+        decoder_layers_out = (float *) malloc(map_size[layer] * depth_size[layer] * sizeof(float));
+//        filter = (float *) malloc(FILTER_SIZE * depth_size[layer] * depth_size[layer - 1] * sizeof(float));
+        skip = (float *) malloc(map_size[layer] * depth_size[layer] * sizeof(float));
+//        fill_filter(filter, depth_size[layer], depth_size[layer - 1]);
+//        fill_filter(filter, 2 - layer);
+//        fill_dec(filter, 2-layer);
+        filter = dec_w[1 - layer];
+        deconv1d(layer_in, filter, decoder_layers_out, map_size[layer+1], depth_size[layer+1], depth_size[layer]);
+        if (layer != 0) {
+            fill_skip(skip, map_size[layer], depth_size[layer]);
+            skip_add(encoder_layers_out[layer], skip, decoder_layers_out, map_size[layer],
+                     depth_size[layer]);
+        }
         layer_in = decoder_layers_out;
-        free(filter);
+//        free(filter);
     }
 }
