@@ -163,7 +163,7 @@ void forward_propagation(float *data) {
     float *layer_in = data;
 
     // Encoder
-    for (int layer = 0; layer < 2; layer++) {
+    for (int layer = 0; layer < 8; layer++) {
         printf("Encoder Layer %d\n", layer);
         encoder_layers_out[layer] = (float *) malloc(map_size[layer + 1] * depth_size[layer + 1] * sizeof(float));
         filter = enc_w[layer];
@@ -173,13 +173,13 @@ void forward_propagation(float *data) {
     }
 
     // Concatenation
-//    layer_in = (float *) malloc(map_size[8] * depth_size[8] * 2 * sizeof(float));
-//    concatenate(encoder_layers_out[7], Z_array, layer_in, map_size[8], depth_size[8]);
+    layer_in = (float *) malloc(map_size[8] * depth_size[8] * 2 * sizeof(float));
+    concatenate(encoder_layers_out[7], Z_array, layer_in, map_size[8], depth_size[8]);
 
     // Decoder
     float * decoder_layers_out;
     float * skip;
-    for (int layer = 1; layer >=0; layer--) {
+    for (int layer = 7; layer >=0; layer--) {
         printf("Decoder Layer %d\n", layer);
         decoder_layers_out = (float *) malloc(map_size[layer] * depth_size[layer] * sizeof(float));
         filter = dec_w[1 - layer];
