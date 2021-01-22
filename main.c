@@ -115,7 +115,7 @@ void deconv1d(float *data, const float *filter, float *map_out,
             }
             if (sum < 0)
                 sum *= 0.3f; // Leaky Relu
-            mem2d(map_out, input_len >> 1, w_n, start_index >> 1) = sum;
+            mem2d(map_out, input_len, w_n, start_index) = sum;
         }
     }
 }
@@ -136,6 +136,10 @@ void skip_add(float *data, float *filter, float *map_out,
               int input_len, const int input_depth){
     for (int w_j = 0; w_j < input_depth; w_j++) {
         for (int w_i = 0; w_i < input_len; w_i++) {
+printf("%d, %d\n", w_j, w_i);
+printf("enc: %f\n", mem2d(data, input_len, w_j, w_i));
+printf("A: %f\n", mem2d(filter, input_len, w_j, w_i));
+printf("dec: %f\n\n", mem2d(map_out, input_len, w_j, w_i));
             float add = mem2d(data, input_len, w_j, w_i) * mem2d(filter, input_len, w_j, w_i);
             mem2d(map_out, input_len, w_j, w_i) += add;
         }
@@ -145,9 +149,9 @@ void skip_add(float *data, float *filter, float *map_out,
 }
 
 
-void save_file(float* data, int input_len){
+void save_file(float* data, char* filename, int input_len){
     FILE *fp;
-    fp = fopen("output.txt","w");
+    fp = fopen(filename,"w");
     for (int wi=0; wi<input_len; wi++)
         fprintf(fp,"%f\n",data[wi]);
 
@@ -161,6 +165,12 @@ void forward_propagation(float *data) {
 
     float *filter;
     float *layer_in = data;
+    save_file(layer_in, "input.txt", map_size[0]);
+
+for(int i=0; i<8; i++){
+        printf("layer %d: %f\n", i, *enc_w[i]);
+printf("layer %d: %f\n", i, *dec_w[i]);
+    }
 
     // Encoder
     for (int layer = 0; layer < 8; layer++) {
@@ -182,7 +192,7 @@ void forward_propagation(float *data) {
     for (int layer = 7; layer >=0; layer--) {
         printf("Decoder Layer %d\n", layer);
         decoder_layers_out = (float *) malloc(map_size[layer] * depth_size[layer] * sizeof(float));
-        filter = dec_w[1 - layer];
+        filter = dec_w[7 - layer];
         deconv1d(layer_in, filter, decoder_layers_out, map_size[layer+1], depth_size[layer+1], depth_size[layer]);
         if (layer != 0) {
             skip = A_w[layer-1];
@@ -193,5 +203,5 @@ void forward_propagation(float *data) {
 //        free(filter);
     }
 
-    save_file(layer_in, map_size[0]);
+    save_file(layer_in, "output.txt", map_size[0]);
 }
