@@ -10,7 +10,6 @@
 void fill_map(float *data, int size, int depth);
 
 void fill_filter(float *filter, int depth, int n);
-void fill_dec(float *filter, int layer_num);
 
 void fill_skip(float *filter, int size, int depth);
 
@@ -59,9 +58,6 @@ void fill_filter(float *filter, int depth, int n) {
         filter[i] = (float) (rand() % 17 - 8);
 }
 
-void fill_dec(float *filter, int layer_num){
-    filter = dec_w[layer_num];
-}
 
 void fill_skip(float *filter, int size, int depth){
     for (int i = 0; i < size * depth; ++i)
@@ -76,14 +72,22 @@ void conv1d(const float *data, const float *filter, float *map_out,
             sum = 0;
             for (int w_i = 0; w_i < FILTER_SIZE; w_i++) {
                 for (int w_j = 0; w_j < input_depth; w_j++) {
-                    if (start_index + w_i - 15 < input_len && start_index + w_i - 15 > -1)
+                    if (start_index + w_i - 15 < input_len && start_index + w_i - 15 > -1) {
                         sum += mem3d(filter, FILTER_SIZE, input_depth, w_n, w_j, w_i) *
                                mem2d(data, input_len, w_j, start_index + w_i - 15);
+//                        printf("weight %d,%d,%d X in %d, %d: %f X %f = %f\n",
+//                               w_i, w_j, w_n, start_index + w_i - 15,  w_j,
+//                               mem3d(filter, FILTER_SIZE, input_depth, w_n, w_j, w_i),
+//                               mem2d(data, input_len, w_j, start_index + w_i - 15),
+//                               sum);
+                    }
                 }
             }
             if (sum < 0)
                 sum *= 0.3f; // Leaky Relu
             mem2d(map_out, input_len >> 1, w_n, start_index >> 1) = sum;
+//            printf("Wrote %f in %d, %d", sum, start_index >> 1, w_n );
+//            getchar();
         }
     }
 }
@@ -167,11 +171,6 @@ void forward_propagation(float *data) {
     float *layer_in = data;
     save_file(layer_in, "input.txt", map_size[0]);
 
-for(int i=0; i<8; i++){
-        printf("layer %d: %f\n", i, *enc_w[i]);
-printf("layer %d: %f\n", i, *dec_w[i]);
-    }
-
     // Encoder
     for (int layer = 0; layer < 8; layer++) {
         printf("Encoder Layer %d\n", layer);
@@ -180,6 +179,9 @@ printf("layer %d: %f\n", i, *dec_w[i]);
         conv1d(layer_in, filter, encoder_layers_out[layer], map_size[layer], depth_size[layer], depth_size[layer + 1]);
         layer_in = encoder_layers_out[layer];
 //        free(filter);
+        char out_filename[13];
+        sprintf(out_filename, "enc_out%d.txt", layer);
+        save_file(encoder_layers_out[layer], out_filename, map_size[layer+ 1] * depth_size[layer +1] );
     }
 
     // Concatenation
@@ -196,10 +198,13 @@ printf("layer %d: %f\n", i, *dec_w[i]);
         deconv1d(layer_in, filter, decoder_layers_out, map_size[layer+1], depth_size[layer+1], depth_size[layer]);
         if (layer != 0) {
             skip = A_w[layer-1];
-            skip_add(encoder_layers_out[layer], skip, decoder_layers_out, map_size[layer],
-                     depth_size[layer]);
+//            skip_add(encoder_layers_out[layer], skip, decoder_layers_out, map_size[layer],
+//                     depth_size[layer]);
         }
         layer_in = decoder_layers_out;
+        char out_filename[13];
+        sprintf(out_filename, "dec_out%d.txt", layer);
+        save_file(decoder_layers_out, out_filename, map_size[layer] * depth_size[layer] );
 //        free(filter);
     }
 
