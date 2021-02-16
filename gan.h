@@ -15,8 +15,8 @@
 
 #define mem3d(filter,filter_len,filter_depth,n,k,i)   filter[((n)*(filter_depth)+(k))*(filter_len)+(i)]
 
-#define LEAKY_RATIO 322122547
-#define INV_LEAKY_RATIO 3579139413
+#define LEAKY_RATIO 322122547 // 32bits: 1288490188 // 40 bits: 329853488332 // 30bits: 322122547
+#define INV_LEAKY_RATIO 3579139413// 32bits: 14316557653 // 40 bits: 3665038758886 // 30 bits: 3579139413
 
 extern long Z_array[];
 extern long* enc_w[8];

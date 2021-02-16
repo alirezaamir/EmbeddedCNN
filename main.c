@@ -68,7 +68,7 @@ void deconv1d(long *data, const long *filter, long *map_out,
               int input_len, const int input_depth, const int n_filter) {
     // Upsampling
     input_len *= 2; // Update input len to the upsampled one
-    int *upsampled = (int *) malloc(input_len * input_depth * sizeof(int));
+    long *upsampled = (long *) malloc(input_len * input_depth * sizeof(long));
     for (int w_j= 0; w_j< input_depth; w_j ++)
         for (int i = 0; i < input_len; i++) {
             if (i % 2 == 1) {
@@ -90,7 +90,7 @@ void deconv1d(long *data, const long *filter, long *map_out,
                     if (start_index + w_i - 15 < input_len && start_index + w_i - 15 > -1) {
                         sum += MUL(mem3d(filter, FILTER_SIZE, n_filter, w_j, w_n, FILTER_SIZE - w_i - 1) ,
                                mem2d(upsampled, input_len, w_j, start_index + w_i - 15));
-//                        printf("weight %d,%d,%d X in %d, %d: %f X %f = %f\n",
+//                        printf("weight %d,%d,%d X in %d, %d: %ld X %ld = %ld\n",
 //                               FILTER_SIZE - w_i - 1, w_j, w_n, start_index + w_i - 15, w_j,
 //                               mem3d(filter, FILTER_SIZE, n_filter, w_j, w_n, FILTER_SIZE - w_i - 1),
 //                               mem2d(upsampled, input_len, w_j, start_index + w_i - 15),
