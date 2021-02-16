@@ -5,23 +5,23 @@
 #ifndef EPILEPSYGAN_GAN_H
 #define EPILEPSYGAN_GAN_H
 
-#define NUM_FRACTION_BITS 24
+#define NUM_FRACTION_BITS 30
 
 #define mem2d(data,data_len,j,i)   data[((j)*(data_len))+(i)]
-#define MUL(x, y) (int)((((long)(x)*(long)(y)))>>NUM_FRACTION_BITS)
+#define MUL(x, y) ((((long)(x)*(long)(y)))>>NUM_FRACTION_BITS)
 
 // data is a 2-dimensional matrix implemented as 1-dimensional array
 // data[y][x] == data[ y * q + x ]
 
 #define mem3d(filter,filter_len,filter_depth,n,k,i)   filter[((n)*(filter_depth)+(k))*(filter_len)+(i)]
 
-#define LEAKY_RATIO 5033164
-#define INV_LEAKY_RATIO 55924047
+#define LEAKY_RATIO 322122547
+#define INV_LEAKY_RATIO 3579139413
 
-extern int Z_array[];
-extern int* enc_w[8];
-extern int* dec_w[8];
-extern int* A_w[7];
-extern int input_array[];
+extern long Z_array[];
+extern long* enc_w[8];
+extern long* dec_w[8];
+extern long* A_w[7];
+extern long input_array[];
 
 #endif //EPILEPSYGAN_GAN_H
