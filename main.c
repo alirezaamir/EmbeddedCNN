@@ -12,7 +12,7 @@ void conv1d(const int   *data, const short   *filter, int   *map_out,
 void deconv1d(int   *data, const short   *filter, int   *map_out,
               int input_len, int input_depth, int n_filter, int shift);
 
-void skip_add(int   *data, int   *filter, int   *map_out,
+void skip_add(int   *data, const short   *filter, int   *map_out,
               int input_len, int input_depth);
 
 void forward_propagation(int   *data);
@@ -96,11 +96,11 @@ void concatenate(const int   *data, const int   *z, int   *map_out,
 }
 
 
-void skip_add(int   *data, int   *filter, int   *map_out,
+void skip_add(int   *data, const short   *filter, int   *map_out,
               int input_len, const int input_depth) {
     for (int w_j = 0; w_j < input_depth; w_j++) {
         for (int w_i = 0; w_i < input_len; w_i++) {
-            int   add = MUL(mem2d(data, input_len, w_j, w_i), mem2d(filter, input_len, w_j, w_i), NUM_FRACTION_BITS);
+            int   add = MUL(mem2d(data, input_len, w_j, w_i), mem2d(filter, input_len, w_j, w_i), 20);
             add += mem2d(data, input_len, w_j, w_i);
             if (add <0)
                 add = MUL(add,  INV_LEAKY_RATIO, NUM_FRACTION_BITS);
@@ -126,6 +126,7 @@ void forward_propagation(int   *data) {
 
     const int shift_bits_enc[8] = {18, 21, 21, 21, 22, 22, 22, 23};
     const int shift_bits_dec[8] = {23, 22, 21, 20, 20, 20, 19, 18};
+    const int shift_bits_skp[7] = {20, 20, 20, 20, 20, 20, 20};
 
     short   *filter;
     int   *layer_in = (int   *) data;
@@ -149,7 +150,7 @@ void forward_propagation(int   *data) {
 
     // Decoder
     int   *decoder_layers_out;
-    int   *skip;
+    short   *skip;
     for (int layer = 7; layer >= 0; layer--) {
         decoder_layers_out = (int   *) malloc(map_size[layer] * depth_size[layer] * sizeof(int  ));
         filter = dec_w[7 - layer];
