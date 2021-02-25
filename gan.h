@@ -16,8 +16,8 @@
 #define INV_LEAKY_RATIO 894784853 // 3495253 // 28: 894784853 // 30: 3579139413
 
 extern int Z_array[];
-extern int* enc_w[8];
-extern int* dec_w[8];
+extern short* enc_w[8];
+extern short* dec_w[8];
 extern int* A_w[7];
 extern int input_array[];
 

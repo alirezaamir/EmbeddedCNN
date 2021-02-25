@@ -6,10 +6,10 @@
 
 
 // ===========================> Functions Prototype <===============================
-void conv1d(const int   *data, const int   *filter, int   *map_out,
+void conv1d(const int   *data, const short   *filter, int   *map_out,
             int input_len, int input_depth, int n_filter, int shift);
 
-void deconv1d(int   *data, const int   *filter, int   *map_out,
+void deconv1d(int   *data, const short   *filter, int   *map_out,
               int input_len, int input_depth, int n_filter, int shift);
 
 void skip_add(int   *data, int   *filter, int   *map_out,
@@ -27,7 +27,7 @@ int main() {
 }
 
 
-void conv1d(const int   *data, const int   *filter, int   *map_out,
+void conv1d(const int   *data, const short   *filter, int   *map_out,
             const int input_len, const int input_depth, const int n_filter, const int shift_bits) {
     int   sum;
     for (int w_n = 0; w_n < n_filter; w_n++) {
@@ -48,7 +48,7 @@ void conv1d(const int   *data, const int   *filter, int   *map_out,
     }
 }
 
-void deconv1d(int   *data, const int   *filter, int   *map_out,
+void deconv1d(int   *data, const short   *filter, int   *map_out,
               int input_len, const int input_depth, const int n_filter, const int shift_bits) {
     // Upsampling
     input_len *= 2; // Update input len to the upsampled one
@@ -127,7 +127,7 @@ void forward_propagation(int   *data) {
     const int shift_bits_enc[8] = {18, 21, 21, 21, 22, 22, 22, 23};
     const int shift_bits_dec[8] = {23, 22, 21, 20, 20, 20, 19, 18};
 
-    int   *filter;
+    short   *filter;
     int   *layer_in = (int   *) data;
 
     // Encoder
