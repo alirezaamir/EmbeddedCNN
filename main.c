@@ -6,14 +6,14 @@
 
 
 // ===========================> Functions Prototype <===============================
-void conv1d(const int   *data, const short   *filter, int   *map_out,
+void conv1d(const int   *data, const short   *filter, int   *map_out, int  *map_skip,
             int input_len, int input_depth, int n_filter, int shift);
 
 void deconv1d(int   *data, const short   *filter, int   *map_out,
               int input_len, int input_depth, int n_filter, int shift);
 
 void skip_add(int   *data, const short   *filter, int   *map_out,
-              int input_len, int input_depth);
+              int input_len, int input_depth, int shift);
 
 void forward_propagation(int   *data);
 // =================================================================================
@@ -27,7 +27,7 @@ int main() {
 }
 
 
-void conv1d(const int   *data, const short   *filter, int   *map_out,
+void conv1d(const int   *data, const short   *filter, int   *map_out, int *map_skip,
             const int input_len, const int input_depth, const int n_filter, const int shift_bits) {
     int   sum;
     for (int w_n = 0; w_n < n_filter; w_n++) {
@@ -41,6 +41,7 @@ void conv1d(const int   *data, const short   *filter, int   *map_out,
                     }
                 }
             }
+            mem2d(map_skip, input_len >> 1, w_n, start_index >> 1)  = sum;
             if (sum < 0)
                 sum = MUL(sum, LEAKY_RATIO, NUM_FRACTION_BITS); // Leaky Relu
             mem2d(map_out, input_len >> 1, w_n, start_index >> 1) = sum;
@@ -97,13 +98,13 @@ void concatenate(const int   *data, const int   *z, int   *map_out,
 
 
 void skip_add(int   *data, const short   *filter, int   *map_out,
-              int input_len, const int input_depth) {
+              int input_len, const int input_depth, const int shift_bits) {
     for (int w_j = 0; w_j < input_depth; w_j++) {
         for (int w_i = 0; w_i < input_len; w_i++) {
-            int   add = MUL(mem2d(data, input_len, w_j, w_i), mem2d(filter, input_len, w_j, w_i), 20);
+            int   add = MUL(mem2d(data, input_len, w_j, w_i), mem2d(filter, input_len, w_j, w_i), shift_bits);
             add += mem2d(data, input_len, w_j, w_i);
-            if (add <0)
-                add = MUL(add,  INV_LEAKY_RATIO, NUM_FRACTION_BITS);
+//            if (add <0)
+//                add = MUL(add,  INV_LEAKY_RATIO, NUM_FRACTION_BITS);
             mem2d(map_out, input_len, w_j, w_i) += add;
         }
     }
@@ -130,18 +131,20 @@ void forward_propagation(int   *data) {
 
     short   *filter;
     int   *layer_in = (int   *) data;
+    int   *layer_out;
 
     // Encoder
     for (int layer = 0; layer <= 7; layer++) {
         encoder_layers_out[layer] = (int   *) malloc(map_size[layer + 1] * depth_size[layer + 1] * sizeof(int  ));
+        layer_out = (int   *) malloc(map_size[layer + 1] * depth_size[layer + 1] * sizeof(int  ));
         filter = enc_w[layer];
-        conv1d(layer_in, filter, encoder_layers_out[layer], map_size[layer], depth_size[layer],
-               depth_size[layer + 1], shift_bits_enc[layer]);
-        layer_in = encoder_layers_out[layer];
+        conv1d(layer_in, filter, layer_out, encoder_layers_out[layer],
+               map_size[layer], depth_size[layer], depth_size[layer + 1], shift_bits_enc[layer]);
+        layer_in = layer_out;
 
         char out_filename[17];
         sprintf(out_filename, "fxp_enc_out%d.txt", layer);
-        save_file(encoder_layers_out[layer], out_filename, map_size[layer + 1] * depth_size[layer + 1]);
+        save_file(layer_out, out_filename, map_size[layer + 1] * depth_size[layer + 1]);
     }
 
     // Concatenation
@@ -159,7 +162,8 @@ void forward_propagation(int   *data) {
                  shift_bits_dec[7-layer]);
         if (layer != 0) {
             skip = A_w[layer - 1];
-            skip_add(encoder_layers_out[layer-1], skip, decoder_layers_out, map_size[layer], depth_size[layer]);
+            skip_add(encoder_layers_out[layer-1], skip, decoder_layers_out, map_size[layer], depth_size[layer],
+                     shift_bits_skp[layer-1]);
         }
         layer_in = decoder_layers_out;
 

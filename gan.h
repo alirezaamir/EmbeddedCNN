@@ -13,7 +13,6 @@
 #define mem3d(filter,filter_len,filter_depth,n,k,i)   filter[((n)*(filter_depth)+(k))*(filter_len)+(i)]
 
 #define LEAKY_RATIO 80530636 // 314572 // 28: 80530636 // 30: 322122547
-#define INV_LEAKY_RATIO 894784853 // 3495253 // 28: 894784853 // 30: 3579139413
 
 extern int Z_array[];
 extern short* enc_w[8];
