@@ -43,7 +43,7 @@ void conv1d(const int   *data, const short   *filter, int   *map_out, int *map_s
             }
             mem2d(map_skip, input_len >> 1, w_n, start_index >> 1)  = sum;
             if (sum < 0)
-                sum = MUL(sum, LEAKY_RATIO, NUM_FRACTION_BITS); // Leaky Relu
+                sum = MUL(sum, LEAKY_RATIO, 16); // Leaky Relu
             mem2d(map_out, input_len >> 1, w_n, start_index >> 1) = sum;
         }
     }
@@ -78,7 +78,7 @@ void deconv1d(int   *data, const short   *filter, int   *map_out,
                 }
             }
             if (sum < 0 && n_filter != 1)
-                sum = MUL(sum, LEAKY_RATIO, NUM_FRACTION_BITS); // Leaky Relu
+                sum = MUL(sum, LEAKY_RATIO, 16); // Leaky Relu
             mem2d(map_out, input_len, w_n, start_index) = sum;
         }
     }
