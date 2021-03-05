@@ -7,7 +7,7 @@
 
 // ===========================> Functions Prototype <===============================
 void conv1d(const short *data, const short *filter, short *map_out, short *map_skip,
-            int input_len, int input_depth, int n_filter, int shift);
+            int input_len, int input_depth, int n_filter, int w_shift, int map_shift);
 
 void deconv1d(const short *data, const short *filter, short *map_out,
               int input_len, int input_depth, int n_filter, int shift);
@@ -22,15 +22,13 @@ int main() {
     // allocate memory in CPU for calculation
     short *eeg_input;
     eeg_input = input_array;
-//    int sum = (1<<15) + 100;
-//    printf("OVERFLOW: %d %d\n", sum, (short) sum);
     forward_propagation(eeg_input);
     return 0;
 }
 
 
 void conv1d(const short *data, const short *filter, short *map_out, short *map_skip,
-            const int input_len, const int input_depth, const int n_filter, const int shift_bits) {
+            const int input_len, const int input_depth, const int n_filter, const int w_shift, const int map_shift) {
     int sum;
     int cnt = 0;
     for (int w_n = 0; w_n < n_filter; w_n++) {
@@ -40,21 +38,21 @@ void conv1d(const short *data, const short *filter, short *map_out, short *map_s
                 for (int w_j = 0; w_j < input_depth; w_j++) {
                     if (start_index + w_i - 15 < input_len && start_index + w_i - 15 > -1) {
                         sum += MUL(mem3d(filter, FILTER_SIZE, input_depth, w_n, w_j, w_i),
-                                   mem2d(data, input_len, w_j, start_index + w_i - 15), shift_bits);
+                                   mem2d(data, input_len, w_j, start_index + w_i - 15), w_shift);
                     }
                 }
             }
-//            sum <<= 2;
-//            sum = sum>= (1<<15) ? 0x7FFF : sum;
-//            sum = sum<= -(1<<15) ? 0x8000 : sum;
+            sum = map_shift>=0? sum << map_shift: sum >> -map_shift;
+            if (sum > (1 << 15) || sum < -(1 << 15)) {
+//                printf("OVERFLOW: %d %d\n", sum, (short) sum);
+                cnt++;
+            }
+            sum = sum>= (1<<15) ? 0x7FFF : sum;
+            sum = sum<= -(1<<15) ? 0x8000 : sum;
 
             mem2d(map_skip, input_len >> 1, w_n, start_index >> 1) = (short) sum;
             if (sum < 0)
                 sum = MUL(sum, LEAKY_RATIO, 16); // Leaky Relu
-            if (shift_bits == 18 && (sum > (1 << 15) || sum < -(1 << 15))) {
-                printf("OVERFLOW: %d %d\n", sum, (short) sum);
-                cnt++;
-            }
 
             mem2d(map_out, input_len >> 1, w_n, start_index >> 1) = (short) sum;
         }
@@ -127,7 +125,7 @@ void save_file(short *data, char *filename, int input_len) {
     FILE *fp;
     fp = fopen(filename, "w");
     for (int wi = 0; wi < input_len; wi++)
-        fprintf(fp, "%d\n", data[wi] << 0);
+        fprintf(fp, "%d\n", data[wi]);
 
     fclose(fp);
 }
@@ -137,9 +135,12 @@ void forward_propagation(short *data) {
     const int depth_size[9] = {1, 64, 64, 128, 128, 256, 256, 512, 1024};
     const int map_size[9] = {2048, 1024, 512, 256, 128, 64, 32, 16, 8};
 
-    const int shift_bits_enc[8] = {18, 21, 21, 21, 22, 22, 22, 23};
-    const int shift_bits_dec[8] = {23, 22, 21, 20, 20, 20, 19, 18};
-    const int shift_bits_skp[7] = {20, 20, 20, 20, 20, 20, 20};
+    const int w_shift_enc[8] = {18, 21, 21, 21, 22, 22, 22, 23};
+    const int w_shift_dec[8] = {23, 22, 21, 20, 20, 20, 19, 18};
+    const int w_shift_skp[7] = {20, 20, 20, 20, 20, 20, 20};
+
+//    const int map_shift_enc[8] = {2, 0, 1, -1, -1, -2, -1, -1};
+    const int map_shift_enc[8] = {0};
 
     short *filter;
     short *layer_in = (short *) data;
@@ -151,7 +152,7 @@ void forward_propagation(short *data) {
         layer_out = (short *) malloc(map_size[layer + 1] * depth_size[layer + 1] * sizeof(short));
         filter = enc_w[layer];
         conv1d(layer_in, filter, layer_out, encoder_layers_out[layer],
-               map_size[layer], depth_size[layer], depth_size[layer + 1], shift_bits_enc[layer]);
+               map_size[layer], depth_size[layer], depth_size[layer + 1], w_shift_enc[layer], map_shift_enc[layer]);
         layer_in = layer_out;
 
         char out_filename[17];
@@ -171,11 +172,11 @@ void forward_propagation(short *data) {
         filter = dec_w[7 - layer];
         deconv1d(layer_in, filter, decoder_layers_out, map_size[layer + 1],
                  depth_size[layer + 1] * (layer == 7 ? 2 : 1), depth_size[layer],
-                 shift_bits_dec[7 - layer]);
+                 w_shift_dec[7 - layer]);
         if (layer != 0) {
             skip = A_w[layer - 1];
             skip_add(encoder_layers_out[layer - 1], skip, decoder_layers_out, map_size[layer], depth_size[layer],
-                     shift_bits_skp[layer - 1]);
+                     w_shift_skp[layer - 1]);
         }
         layer_in = decoder_layers_out;
 
