@@ -19,6 +19,7 @@ extern int Z_array[];
 extern int* enc_w[8];
 extern int* dec_w[8];
 extern int* A_w[7];
+extern int* fc_w;
 extern int input_array[];
 
 #endif //EPILEPSYGAN_GAN_H
