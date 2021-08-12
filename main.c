@@ -76,9 +76,8 @@ void save_file(short *data, char *filename, int input_len) {
 }
 
 void forward_propagation(short *data) {
-//    int   *layers_out[8] = {0};
-    int depth_size[10] = {1, 64, 64, 64, 128, 128, 256, 256, 512, 512};
-    int map_size[10] = {768, 381, 94, 92, 45, 43, 21, 19, 9, 7};
+    int depth_size[11] = {1, 64, 64, 64, 64, 128, 128, 256, 256, 512, 512};
+    int map_size[11] = {768, 381, 190,  94, 92, 45, 43, 21, 19, 9, 7};
 
     short *filter;
     short *bias;
@@ -90,39 +89,35 @@ void forward_propagation(short *data) {
     bias = bias_w[0];
     conv1d(layer_in, filter, first_conv, bias, 7, map_size[0], depth_size[0], map_size[1],
            depth_size[1], 2);
-    short *max_pool = (short *) malloc(190 * 64 * sizeof(short));
+    short *max_pool = (short *) malloc(map_size[2] * depth_size[2] * sizeof(short));
     max1d(first_conv, max_pool, map_size[1], depth_size[1], 3, 2);
     //free(first_conv);
 
     layer_in = max_pool;
-    short *conv1d_1;
-    short *conv1d_2;
-    short *conv1d_skip;
     for (int block = 0; block < 4; block++) {
-        int index = block * 2 + 1;
-        conv1d_1 = (short *) malloc(map_size[index+1] * depth_size[index+1] * sizeof(short));
-        conv1d_2 = (short *) malloc(map_size[index+2] * depth_size[index+2] * sizeof(short));
-        conv1d_skip = (short *) malloc(map_size[index + 2] * depth_size[index + 2] * sizeof(short));
-        filter = enc_w[index];
-        bias = bias_w[index];
+        int index = block * 2 + 2;
+        short* conv1d_1 = (short *) malloc(map_size[index+1] * depth_size[index+1] * sizeof(short));
+        filter = enc_w[index-1];
+        bias = bias_w[index-1];
         conv1d(layer_in, filter, conv1d_1, bias, 3, map_size[index], depth_size[index], map_size[index+1],
                depth_size[index + 1], 2);
-        //short *conv1d_2 = (short *) malloc(map_size[index+2] * depth_size[index+2] * sizeof(short));
-        filter = enc_w[index + 1];
-        bias = bias_w[index + 1];
+        short *conv1d_2 = (short *) malloc(map_size[index+2] * depth_size[index+2] * sizeof(short));
+        filter = enc_w[index];
+        bias = bias_w[index];
         conv1d(conv1d_1, filter, conv1d_2, bias, 3, map_size[index + 1], depth_size[index+1], map_size[index + 2],
                depth_size[index + 2], 1);
 
+        short* conv1d_skip = (short *) malloc(map_size[index + 2] * depth_size[index + 2] * sizeof(short));
         filter = skip_w[block];
         bias = skip_bias[block];
         conv1d(layer_in, filter, conv1d_skip, bias, 7, map_size[index], depth_size[index], map_size[index + 2],
                depth_size[index + 2], 2);
 
         skip_add(conv1d_2, conv1d_skip, map_size[index + 2] * depth_size[index + 2]);
-        layer_in = conv1d_skip;
+        layer_in = conv1d_2;
     }
     short *fully_connected = malloc(2 * sizeof(short));
-    conv1d(layer_in, fc_weights_1, fully_connected, fc_bias_1, 7, map_size[9], depth_size[9],
+    conv1d(layer_in, fc_weights_1, fully_connected, fc_bias_1, 7, map_size[10], depth_size[10],
            1, 2, 1);
 
     save_file(fully_connected, "fxp_output.txt", 2);
