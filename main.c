@@ -7,7 +7,7 @@
 //void conv1d(int *data, int *filter, int *map_out, int *bias, int filter_size,
 //            int input_len, int input_depth, int n_filter, int strides);
 void conv1d(const int *data, const int *filter, int *map_out, const int *bias, int filter_size,
-            int input_len, int input_depth, int output_len, int n_filter, int strides);
+            int input_len, int input_depth, int output_len, int n_filter, int strides, int relu);
 
         void deconv1d(int *data, const int *filter, int *map_out,
               int input_len, int input_depth, int n_filter);
@@ -27,7 +27,7 @@ int main() {
 
 
 void conv1d(const int *data, const int *filter, int *map_out,const int *bias, const int filter_size,
-            const int input_len, const int input_depth, const int output_len, const int n_filter, const int strides) {
+            const int input_len, const int input_depth, const int output_len, const int n_filter, const int strides, const int relu) {
     int sum;
     int mult;
     for (int w_n = 0; w_n < n_filter; w_n++) {
@@ -40,7 +40,7 @@ void conv1d(const int *data, const int *filter, int *map_out,const int *bias, co
                     sum += mult;
                 }
             }
-            if (sum < 0)
+            if (sum < 0 && relu)
                 sum = 0; // Relu
             mem2d(map_out, output_len, w_n, start_index/strides) = sum + bias[w_n];
         }
@@ -91,7 +91,7 @@ void forward_propagation(int *data) {
     filter = enc_w[0];
     bias = bias_w[0];
     conv1d(layer_in, filter, first_conv, bias, 7, map_size[0], depth_size[0], map_size[1],
-           depth_size[1], 2);
+           depth_size[1], 2, 1);
     int *max_pool = (int *) malloc(map_size[2] * depth_size[2] * sizeof(int));
     max1d(first_conv, max_pool, map_size[1], depth_size[1], 3, 2);
     save_file(max_pool, "max_pool1.txt", map_size[2] * depth_size[2]);
@@ -104,7 +104,7 @@ void forward_propagation(int *data) {
         filter = enc_w[index-1];
         bias = bias_w[index-1];
         conv1d(layer_in, filter, conv1d_1, bias, 3, map_size[index], depth_size[index], map_size[index+1],
-               depth_size[index + 1], 2);
+               depth_size[index + 1], 2, 1);
         char out_filename[17];
         sprintf(out_filename, "conv1d_b%d_1.txt", block);
         save_file(conv1d_1, out_filename, map_size[index + 1] * depth_size[index + 1]);
@@ -113,7 +113,7 @@ void forward_propagation(int *data) {
         filter = enc_w[index];
         bias = bias_w[index];
         conv1d(conv1d_1, filter, conv1d_2, bias, 3, map_size[index + 1], depth_size[index+1], map_size[index + 2],
-               depth_size[index + 2], 1);
+               depth_size[index + 2], 1, 1);
         sprintf(out_filename, "conv1d_b%d_2.txt", block);
         save_file(conv1d_2, out_filename, map_size[index + 2] * depth_size[index + 2]);
 
@@ -121,7 +121,7 @@ void forward_propagation(int *data) {
         filter = skip_w[block];
         bias = skip_bias[block];
         conv1d(layer_in, filter, conv1d_skip, bias, 7, map_size[index], depth_size[index], map_size[index + 2],
-               depth_size[index + 2], 2);
+               depth_size[index + 2], 2, 1);
 
         skip_add(conv1d_2, conv1d_skip, map_size[index + 2] * depth_size[index + 2]);
         sprintf(out_filename, "conv1d_b%d_3.txt", block);
@@ -130,7 +130,7 @@ void forward_propagation(int *data) {
     }
     int *fully_connected = malloc(2 * sizeof(int));
     conv1d(layer_in, fc_weights_1, fully_connected, fc_bias_1, 7, map_size[10], depth_size[10],
-           1, 2, 1);
+           1, 2, 1, 0);
 
     save_file(fully_connected, "fxp_output.txt", 2);
 }
