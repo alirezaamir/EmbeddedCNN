@@ -4,24 +4,27 @@
 
 
 // ===========================> Functions Prototype <===============================
-void conv1d(const short *data, const short *filter, short *map_out, const short *bias, int filter_size,
+void conv1d(const int *data, const int *filter, int *map_out, const int *bias, int filter_size,
             int input_len, int input_depth, int output_len, int n_filter, int strides, int relu);
 
-void skip_add(const short *data, short *map_out, int input_len);
+void batch_normalization(const int *data, const int *gamma, const int *beta, const int *mean, const int *var,
+                         int *map_out, int input_len, int input_depth);
 
-void forward_propagation(short *data);
+void skip_add(const int *data, int *map_out, int input_len);
+
+void forward_propagation(int *data);
 // =================================================================================
 
 int main() {
     // allocate memory in CPU for calculation
-    short *ecg_input;
-    ecg_input = input_array;
-    forward_propagation(ecg_input);
+    int *eeg_input;
+    eeg_input = input_array;
+    forward_propagation(eeg_input);
     return 0;
 }
 
 
-void conv1d(const short *data, const short *filter, short *map_out,const short *bias, const int filter_size,
+void conv1d(const int *data, const int *filter, int *map_out,const int *bias, const int filter_size,
             const int input_len, const int input_depth, const int output_len, const int n_filter, const int strides, const int relu) {
     int sum;
     int mult;
@@ -42,12 +45,12 @@ void conv1d(const short *data, const short *filter, short *map_out,const short *
     }
 }
 
-void max1d(const short *data, short *map_out, const int input_len, const int input_depth,
+void max1d(const int *data, int *map_out, const int input_len, const int input_depth,
            const int pool_size, const int strides) {
-    int out_len = (input_len - pool_size / 2) / strides;
-    for (int start_index = 0; start_index < input_len - pool_size; start_index += strides) {
+    int out_len = input_len / strides;
+    for (int start_index = 0; start_index < input_len; start_index += strides) {
         for (int w_j = 0; w_j < input_depth; w_j++) {
-            short maximum = mem2d(data, input_len, w_j, start_index);
+            int maximum = mem2d(data, input_len, w_j, start_index);
             for (int w_i = 1; w_i < pool_size; w_i++) {
                 if (mem2d(data, input_len, w_j, start_index + w_i) > maximum)
                     maximum = mem2d(data, input_len, w_j, start_index + w_i);
@@ -57,13 +60,23 @@ void max1d(const short *data, short *map_out, const int input_len, const int inp
     }
 }
 
-void skip_add(const short *data, short *map_out, int input_len) {
+void batch_normalization(const int *data, const int *gamma, const int *beta, const int *mean, const int *var,
+                         int *map_out, const int input_len, const int input_depth){
+    for (int start_index = 0; start_index < input_len; start_index ++) {
+        for (int w_j = 0; w_j < input_depth; w_j++) {
+            int normalized = (mem2d(data, input_len, w_j, start_index) - mean[w_j]) * var[w_j];
+            mem2d(map_out, input_len, w_j, start_index) = (normalized * gamma[w_j]) + beta[w_j];
+        }
+    }
+}
+
+void relu(const int *data, int *map_out, int input_len) {
     for (int i = 0; i < input_len; i++)
-        map_out[i] += data[i];
+        map_out[i] = (data[i] < 0) ? 0 : data[i];
 }
 
 
-void save_file(short *data, char *filename, int input_len) {
+void save_file(int *data, char *filename, int input_len) {
     FILE *fp;
     fp = fopen(filename, "w");
     for (int wi = 0; wi < input_len; wi++)
@@ -72,60 +85,44 @@ void save_file(short *data, char *filename, int input_len) {
     fclose(fp);
 }
 
-void forward_propagation(short *data) {
-    int depth_size[11] = {1, 64, 64, 64, 64, 128, 128, 256, 256, 512, 512};
-    int map_size[11] = {768, 381, 190,  94, 92, 45, 43, 21, 19, 9, 7};
+void forward_propagation(int *data) {
+    int depth_size[6] = {2, 128, 128, 128, 100, 1};
+    int map_size[6] = {1024, 256, 64, 16, 1, 1};
+    int *filter;
+    int *bias;
+    int *layer_in = (int *) data;
+    save_file(data, "input_data.txt", 2048);
 
-    short *filter;
-    short *bias;
-    short *layer_in = (short *) data;
-    save_file(data, "input_data.txt", 768);
-
-    //
-    short *first_conv = (short *) malloc(map_size[1] * depth_size[1] * sizeof(short));
-    filter = enc_w[0];
-    bias = bias_w[0];
-    conv1d(layer_in, filter, first_conv, bias, 7, map_size[0], depth_size[0], map_size[1],
-           depth_size[1], 2, 1);
-    short *max_pool = (short *) malloc(map_size[2] * depth_size[2] * sizeof(short));
-    max1d(first_conv, max_pool, map_size[1], depth_size[1], 3, 2);
-    save_file(max_pool, "max_pool1.txt", map_size[2] * depth_size[2]);
-    //free(first_conv);
-
-    layer_in = max_pool;
-    for (int block = 0; block < 4; block++) {
-        int index = block * 2 + 2;
-        short* conv1d_1 = (short *) malloc(map_size[index+1] * depth_size[index+1] * sizeof(short));
-        filter = enc_w[index-1];
-        bias = bias_w[index-1];
-        conv1d(layer_in, filter, conv1d_1, bias, 3, map_size[index], depth_size[index], map_size[index+1],
-               depth_size[index + 1], 2, 1);
+    for (int block = 0; block < 3; block++) {
+        int* conv1d_out = (int *) malloc(map_size[block] * depth_size[block + 1] * sizeof(int));
+        filter = conv1d_w[block];
+        bias = conv1d_b[block];
+        conv1d(layer_in, filter, conv1d_out, bias, 3, map_size[block], depth_size[block], map_size[block],
+               depth_size[block + 1], 1, 0);
         char out_filename[17];
-        sprintf(out_filename, "conv1d_b%d_1.txt", block);
-        save_file(conv1d_1, out_filename, map_size[index + 1] * depth_size[index + 1]);
+        sprintf(out_filename, "conv1d_%d.txt", block);
+        save_file(conv1d_out, out_filename, map_size[block] * depth_size[block + 1]);
 
-        short *conv1d_2 = (short *) malloc(map_size[index+2] * depth_size[index+2] * sizeof(short));
-        filter = enc_w[index];
-        bias = bias_w[index];
-        conv1d(conv1d_1, filter, conv1d_2, bias, 3, map_size[index + 1], depth_size[index+1], map_size[index + 2],
-               depth_size[index + 2], 1, 1);
-        sprintf(out_filename, "conv1d_b%d_2.txt", block);
-        save_file(conv1d_2, out_filename, map_size[index + 2] * depth_size[index + 2]);
+        batch_normalization(conv1d_out, bn[block*4], bn[block*4+1], bn[block*4+2], bn[block*4+3],
+                            conv1d_out, map_size[block], depth_size[block+1]);
+        sprintf(out_filename, "bn_%d.txt", block);
+        save_file(conv1d_out, out_filename, map_size[block] * depth_size[block + 1]);
 
-        short* conv1d_skip = (short *) malloc(map_size[index + 2] * depth_size[index + 2] * sizeof(short));
-        filter = skip_w[block];
-        bias = skip_bias[block];
-        conv1d(layer_in, filter, conv1d_skip, bias, 7, map_size[index], depth_size[index], map_size[index + 2],
-               depth_size[index + 2], 2, 1);
+        relu(conv1d_out, conv1d_out, map_size[block] * depth_size[block + 1]);
 
-        skip_add(conv1d_2, conv1d_skip, map_size[index + 2] * depth_size[index + 2]);
-        sprintf(out_filename, "conv1d_b%d_3.txt", block);
-        save_file(conv1d_skip, out_filename, map_size[index + 2] * depth_size[index + 2]);
-        layer_in = conv1d_skip;
+        int* max_out = (int *) malloc(map_size[block+1] * depth_size[block + 1] * sizeof(int));
+        max1d(conv1d_out, max_out, map_size[block], depth_size[block+1], 4, 4);
+        sprintf(out_filename, "max_pool_%d.txt", block);
+        save_file(max_out, out_filename, map_size[block + 1] * depth_size[block + 1]);
+        layer_in = max_out;
     }
-    short *fully_connected = malloc(2 * sizeof(short));
-    conv1d(layer_in, fc_weights_1, fully_connected, fc_bias_1, 7, map_size[10], depth_size[10],
-           1, 2, 1, 0);
-
-    save_file(fully_connected, "fxp_output.txt", 2);
+    for (int fc_index=0; fc_index<2; fc_index++) {
+        int *fully_connected = malloc(map_size[4+fc_index] * depth_size[4+fc_index] * sizeof(int));
+        conv1d(layer_in, dense_w[0], fully_connected, dense_b[0], map_size[3+fc_index],
+               map_size[3+fc_index], depth_size[3+fc_index],
+               map_size[4+fc_index], depth_size[4+fc_index], 1, 0);
+        char out_filename[17];
+        sprintf(out_filename, "dense_%d.txt", fc_index);
+        save_file(fully_connected, out_filename, map_size[4+fc_index] * depth_size[4+fc_index]);
+    }
 }
