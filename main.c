@@ -10,6 +10,7 @@ void conv1d(const short *data, const short *filter, short *map_out, const short 
 void skip_add(const short *data, short *map_out, int input_len);
 
 void forward_propagation(short *data);
+short add_overflow_free(int var0, short var1);
 // =================================================================================
 
 int main() {
@@ -37,7 +38,7 @@ void conv1d(const short *data, const short *filter, short *map_out,const short *
             }
             if (sum < 0 && relu)
                 sum = 0; // Relu
-            mem2d(map_out, output_len, w_n, start_index/strides) = sum + bias[w_n];
+            mem2d(map_out, output_len, w_n, start_index/strides) = add_overflow_free(sum, bias[w_n]);
         }
     }
 }
@@ -58,8 +59,24 @@ void max1d(const short *data, short *map_out, const int input_len, const int inp
 }
 
 void skip_add(const short *data, short *map_out, int input_len) {
-    for (int i = 0; i < input_len; i++)
-        map_out[i] += data[i];
+    for (int i = 0; i < input_len; i++){
+        map_out[i] = add_overflow_free(map_out[i], data[i]);
+    }
+
+}
+
+short add_overflow_free(int var0, short var1){
+    int sum = var0 + var1;
+    if (sum > (1<<15)){
+        printf("Overflow %d\n", sum);
+        return (1<<15) -1;
+    }else if (sum < -(1<< 15)){
+        printf("Overflow %d\n", sum);
+        return -(1<<15) +1;
+    }
+    else{
+        return (short) sum;
+    }
 }
 
 
@@ -89,7 +106,7 @@ void forward_propagation(short *data) {
            depth_size[1], 2, 1);
     short *max_pool = (short *) malloc(map_size[2] * depth_size[2] * sizeof(short));
     max1d(first_conv, max_pool, map_size[1], depth_size[1], 3, 2);
-    save_file(max_pool, "max_pool1.txt", map_size[2] * depth_size[2]);
+    save_file(first_conv, "first_conv.txt", map_size[1] * depth_size[1]);
     //free(first_conv);
 
     layer_in = max_pool;

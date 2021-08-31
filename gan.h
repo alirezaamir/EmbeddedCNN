@@ -5,7 +5,7 @@
 #ifndef EPILEPSYGAN_GAN_H
 #define EPILEPSYGAN_GAN_H
 
-#define NUM_FRACTION_BITS 12
+#define NUM_FRACTION_BITS 14
 
 #define MUL(x, y) (short)((((long)(x)*(long)(y)))>>NUM_FRACTION_BITS)
 
