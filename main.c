@@ -9,15 +9,22 @@ void conv1d(const short *data, const short *filter, short *map_out, const short 
 
 void skip_add(const short *data, short *map_out, int input_len);
 
-void forward_propagation(short *data);
+short forward_propagation(short *data);
 short add_overflow_free(int var0, short var1);
+void save_file(short *data, char *filename, int input_len) ;
 // =================================================================================
 
 int main() {
     // allocate memory in CPU for calculation
     short *ecg_input;
     ecg_input = input_array;
-    forward_propagation(ecg_input);
+    short prediction[1568];
+    for (int sample = 1; sample < 2; sample++) {
+        short predict = forward_propagation(ecg_input + sample * 768);
+        printf("%d: %d\n", sample, predict);
+        prediction[sample] = predict;
+    }
+    save_file(prediction, "1568_short.txt", 1568);
     return 0;
 }
 
@@ -89,7 +96,7 @@ void save_file(short *data, char *filename, int input_len) {
     fclose(fp);
 }
 
-void forward_propagation(short *data) {
+short forward_propagation(short *data) {
     int depth_size[11] = {1, 64, 64, 64, 64, 128, 128, 256, 256, 512, 512};
     int map_size[11] = {768, 381, 190,  94, 92, 45, 43, 21, 19, 9, 7};
 
@@ -145,4 +152,9 @@ void forward_propagation(short *data) {
            1, 2, 1, 0);
 
     save_file(fully_connected, "fxp_output.txt", 2);
+
+    if (fully_connected[0] > fully_connected[1])
+        return 0;
+    else
+        return 1;
 }
