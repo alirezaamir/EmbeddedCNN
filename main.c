@@ -19,13 +19,15 @@ void save_file(short *data, char *filename, int input_len);
 void save_weight(char *data, char *filename, int input_len);
 // =================================================================================
 
-int main() {
+int main(int argc, char** argv) {
+    int pat = atoi(argv[1]);
     // allocate memory in CPU for calculation
     short eeg_input[23*1024];
     short prediction[2000];
 //    eeg_input = input_array;
     FILE *fptr = NULL;
-    char fname[] = "pat1.txt";
+    char fname[11];
+    sprintf(fname, "pat%d.txt", pat);
     fptr = fopen(fname, "r");
     int sample_num = 0;
     int index = 0;
@@ -39,7 +41,8 @@ int main() {
                 sample_num ++;
         }
     }
-    save_file(prediction, "2000_char_3sep.txt", 2000);
+    sprintf(fname, "out%d.txt", pat);
+    save_file(prediction, fname, 2000);
 
     return 0;
 }
