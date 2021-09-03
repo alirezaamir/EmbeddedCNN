@@ -21,15 +21,25 @@ void save_weight(char *data, char *filename, int input_len);
 
 int main() {
     // allocate memory in CPU for calculation
-    short *eeg_input;
+    short eeg_input[23*1024];
     short prediction[2000];
-    eeg_input = input_array;
-    for (int sample = 0; sample < 2000; sample++) {
-        short predict = forward_propagation(eeg_input + sample * 23 * 1024);
-        printf("%d: %d\n", sample, predict);
-        prediction[sample] = predict;
+//    eeg_input = input_array;
+    FILE *fptr = NULL;
+    char fname[] = "pat1.txt";
+    fptr = fopen(fname, "r");
+    int sample_num = 0;
+    int index = 0;
+    while (fscanf(fptr, "%hi", &eeg_input[index]) != EOF){
+        index ++;
+        if (index == 23*1024){
+                short predict = forward_propagation(eeg_input);
+                printf(" %d:  %d\n", sample_num, predict);
+                prediction[sample_num] = predict;
+                index = 0;
+                sample_num ++;
+        }
     }
-    save_file(prediction, "2000_char.txt", 2000);
+    save_file(prediction, "2000_char_3sep.txt", 2000);
 
     return 0;
 }
