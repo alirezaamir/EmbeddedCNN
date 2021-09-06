@@ -43,9 +43,10 @@ void conv1d(const short *data, const short *filter, short *map_out,const short *
                     sum += mult;
                 }
             }
+            sum = add_overflow_free(sum, bias[w_n]);
             if (sum < 0 && relu)
                 sum = 0; // Relu
-            mem2d(map_out, output_len, w_n, start_index/strides) = add_overflow_free(sum, bias[w_n]);
+            mem2d(map_out, output_len, w_n, start_index/strides) = (short) sum;
         }
     }
 }
