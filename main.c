@@ -15,35 +15,12 @@ void batch_normalization(const short *data, const char *gamma, const char *beta,
 
 short forward_propagation(short *data);
 
-void save_file(short *data, char *filename, int input_len);
-
 // =================================================================================
 
-int main(int argc, char **argv) {
-    int pat = atoi(argv[1]);
-    // allocate memory in CPU for calculation
-    short eeg_input[23 * 1024];
-    short prediction[2000];
-//    eeg_input = input_array;
-    FILE *fptr = NULL;
-    char fname[17];
-    sprintf(fname, "pat%d.txt", pat);
-    fptr = fopen(fname, "r");
-    int sample_num = 0;
-    int index = 0;
-    while (fscanf(fptr, "%hi", &eeg_input[index]) != EOF) {
-        index++;
-        if (index == 23 * 1024) {
-            short predict = forward_propagation(eeg_input);
-            printf(" %d:  %d\n", sample_num, predict);
-            prediction[sample_num] = predict;
-            index = 0;
-            sample_num++;
-        }
-    }
-    sprintf(fname, "out_low_mem%d.txt", pat);
-    save_file(prediction, fname, 2000);
-
+int main() {
+    short* eeg_input = input_array;
+    short predict = forward_propagation(eeg_input);
+    printf("Prediction : %d", predict);
     return 0;
 }
 
@@ -142,59 +119,55 @@ void relu(const short *data, short *map_out, int input_len) {
         map_out[i] = (data[i] < 0) ? 0 : data[i];
 }
 
+void conv_block(int block, short* layer_in, short* conv1d_out){
+    int depth_size[6] = {23, 128, 128, 128, 100, 2};
+    int map_size[6] = {1024, 256, 64, 16, 1, 1};
+    char* filter = conv1d_w[block];
+    char* bias = conv1d_b[block];
+    conv_max1d(layer_in, filter, conv1d_out, bias, 3, map_size[block], depth_size[block], map_size[block+1],
+               depth_size[block + 1], 1, 0, 1, 4);
 
-void save_file(short *data, char *filename, int input_len) {
-    FILE *fp;
-    fp = fopen(filename, "w");
-    for (int wi = 0; wi < input_len; wi++)
-        fprintf(fp, "%d,\n", data[wi]);
+    batch_normalization(conv1d_out, bn[block * 4], bn[block * 4 + 1], bn[block * 4 + 2], bn[block * 4 + 3],
+                        conv1d_out, map_size[block+1], depth_size[block + 1]);
 
-    fclose(fp);
+    relu(conv1d_out, conv1d_out, map_size[block+1] * depth_size[block + 1]);
 }
 
 short forward_propagation(short *data) {
-    int depth_size[6] = {23, 128, 128, 128, 100, 2};
-    int map_size[6] = {1024, 256, 64, 16, 1, 1};
-    char *filter;
-    char *bias;
+    int fc_depth_size[6] = {128, 100, 2};
+    int fc_map_size[6] = {16, 1, 1};
+    short intermediate_map0[256*128];
+    short intermediate_map1[64*128];
+
+    //  ************  BLOCK 0  ************ //
+    short *layer_out = intermediate_map0;
     short *layer_in = (short *) data;
-//    save_file(data, "input_data.txt", map_size[0] * depth_size[0]);
+    conv_block(0, layer_in, layer_out);
 
-    for (int block = 0; block < 3; block++) {
-        short *conv1d_out = (short *) malloc(map_size[block+1] * depth_size[block + 1] * sizeof(short));
-        filter = conv1d_w[block];
-        bias = conv1d_b[block];
-        conv_max1d(layer_in, filter, conv1d_out, bias, 3, map_size[block], depth_size[block], map_size[block+1],
-               depth_size[block + 1], 1, 0, 1, 4);
-//        char out_filename[17];
-//        sprintf(out_filename, "conv1d_%d.txt", block);
-//        save_file(conv1d_out, out_filename, map_size[block] * depth_size[block + 1]);
+    //  ************  BLOCK 1  ************ //
+    layer_out = intermediate_map1;
+    layer_in = intermediate_map0;
+    conv_block(1, layer_in, layer_out);
 
-        batch_normalization(conv1d_out, bn[block * 4], bn[block * 4 + 1], bn[block * 4 + 2], bn[block * 4 + 3],
-                            conv1d_out, map_size[block+1], depth_size[block + 1]);
-//        sprintf(out_filename, "bn_%d.txt", block);
-//        save_file(conv1d_out, out_filename, map_size[block] * depth_size[block + 1]);
+    //  ************  BLOCK 2  ************ //
+    layer_out = intermediate_map0;
+    layer_in = intermediate_map1;
+    conv_block(2, layer_in, layer_out);
 
-        relu(conv1d_out, conv1d_out, map_size[block+1] * depth_size[block + 1]);
+    //  ************  FC 0  ************ //
+    layer_out = intermediate_map1;
+    layer_in = intermediate_map0;
+    conv1d(layer_in, dense_w[0], layer_out, dense_b[0], fc_map_size[0],fc_map_size[0],
+           fc_depth_size[0], fc_map_size[1], fc_depth_size[1], fc_map_size[0],
+           1, 0);
 
-//        short *max_out = (short *) malloc(map_size[block + 1] * depth_size[block + 1] * sizeof(short));
-//        max1d(conv1d_out, max_out, map_size[block], depth_size[block + 1], 4, 4);
-//        sprintf(out_filename, "conv_max_%d.txt", block);
-//        save_file(conv1d_out, out_filename, map_size[block + 1] * depth_size[block + 1]);
-        layer_in = conv1d_out;
-    }
-    for (int fc_index = 0; fc_index < 2; fc_index++) {
-        short *fully_connected = malloc(map_size[4 + fc_index] * depth_size[4 + fc_index] * sizeof(short));
-        conv1d(layer_in, dense_w[fc_index], fully_connected, dense_b[fc_index], map_size[3 + fc_index],
-               map_size[3 + fc_index], depth_size[3 + fc_index],
-               map_size[4 + fc_index], depth_size[4 + fc_index], map_size[3 + fc_index],
-               fc_index < 1 ? 1 : 0, 0);
-//        char out_filename[17];
-//        sprintf(out_filename, "dense_%d.txt", fc_index);
-//        save_file(fully_connected, out_filename, map_size[4+fc_index] * depth_size[4+fc_index]);
-        layer_in = fully_connected;
-    }
-//    printf("%d, %d\n", layer_in[0], layer_in[1]);
+    //  ************  FC 1  ************ //
+    layer_out = intermediate_map0;
+    layer_in = intermediate_map1;
+    conv1d(layer_in, dense_w[1], layer_out, dense_b[1], fc_map_size[1],fc_map_size[1],
+           fc_depth_size[1], fc_map_size[2], fc_depth_size[2], fc_map_size[1],
+           0, 0);
+
     if (layer_in[0] > layer_in[1])
         return 0;
     else
