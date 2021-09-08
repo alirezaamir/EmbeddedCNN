@@ -136,7 +136,7 @@ __int16_t forward_propagation(__int16_t *data) {
     __int32_t fc_depth_size[6] = {128, 100, 2};
     __int32_t fc_map_size[6] = {16, 1, 1};
     __int16_t intermediate_map0[256*128];
-    __int16_t intermediate_map1[64*128];
+    __int16_t* intermediate_map1 = data;
 
     //  ************  BLOCK 0  ************ //
     __int16_t *layer_out = intermediate_map0;
@@ -167,7 +167,7 @@ __int16_t forward_propagation(__int16_t *data) {
            fc_depth_size[1], fc_map_size[2], fc_depth_size[2], fc_map_size[1],
            0, 0);
 
-    if (layer_in[0] > layer_in[1])
+    if (layer_out[0] > layer_out[1])
         return 0;
     else
         return 1;
