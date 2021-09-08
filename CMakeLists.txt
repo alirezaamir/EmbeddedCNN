@@ -3,4 +3,4 @@ project(EpilepsyGAN C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(EpilepsyGAN main.c gan.h fcn_w.c fcn_in.c)
+add_executable(EpilepsyGAN main.c gan.h fcn.c)
