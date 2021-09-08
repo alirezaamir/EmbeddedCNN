@@ -8,6 +8,7 @@
 #define NUM_FRACTION_DATA 10
 #define NUM_FRACTION_CNV_FC 8
 #define NUM_FRACTION_BN 5
+#define NEG_INF (-(1<<14))
 
 #define MUL(x, y, num) (short)(((int)(x)*(int)(y))>>(num))
 
