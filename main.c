@@ -12,6 +12,7 @@ void skip_add(const short *data, short *map_out, int input_len);
 short forward_propagation(short *data);
 short add_overflow_free(int var0, short var1);
 void save_file(short *data, char *filename, int input_len) ;
+void pre_processing(short *data, int input_len);
 // =================================================================================
 
 int main() {
@@ -19,7 +20,8 @@ int main() {
     short *ecg_input;
     ecg_input = input_array;
     short prediction[1568];
-    for (int sample = 1; sample < 2; sample++) {
+    for (int sample = 0; sample < 1568; sample++) {
+//        pre_processing(ecg_input + sample * 768, 768);
         short predict = forward_propagation(ecg_input + sample * 768);
         printf("%d: %d\n", sample, predict);
         prediction[sample] = predict;
@@ -29,10 +31,18 @@ int main() {
 }
 
 
+void pre_processing(short* data, int input_len){
+    BWBandPass * filter = create_bw_band_pass_filter(6, 256, 0.67f, 40);
+    for (int i=0; i<input_len; i++)
+        printf("Input %d, Output %f\n", data[i], bw_band_pass(filter, (float)data[i]));
+
+}
+
 void conv1d(const short *data, const short *filter, short *map_out,const short *bias, const int filter_size,
             const int input_len, const int input_depth, const int output_len, const int n_filter, const int strides, const int relu) {
     int sum;
     int mult;
+    int total=0;
     for (int w_n = 0; w_n < n_filter; w_n++) {
         for (int start_index = 0; start_index <= input_len-filter_size; start_index += strides) {
             sum = 0;
@@ -40,15 +50,18 @@ void conv1d(const short *data, const short *filter, short *map_out,const short *
                 for (int w_j = 0; w_j < input_depth; w_j++) {
                     mult = MUL(mem3d(filter, filter_size, input_depth, w_n, w_j, w_i),
                                mem2d(data, input_len, w_j, start_index + w_i));
+                    total += 1;
                     sum += mult;
                 }
             }
             sum = add_overflow_free(sum, bias[w_n]);
+            total += 1;
             if (sum < 0 && relu)
                 sum = 0; // Relu
             mem2d(map_out, output_len, w_n, start_index/strides) = (short) sum;
         }
     }
+//    printf("MAC %d\n", total);
 }
 
 void max1d(const short *data, short *map_out, const int input_len, const int input_depth,
@@ -76,10 +89,10 @@ void skip_add(const short *data, short *map_out, int input_len) {
 short add_overflow_free(int var0, short var1){
     int sum = var0 + var1;
     if (sum > (1<<15)){
-        printf("Overflow %d\n", sum);
+//        printf("Overflow %d\n", sum);
         return (1<<15) -1;
     }else if (sum < -(1<< 15)){
-        printf("Overflow %d\n", sum);
+//        printf("Overflow %d\n", sum);
         return -(1<<15) +1;
     }
     else{
