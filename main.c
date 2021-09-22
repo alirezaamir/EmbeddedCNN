@@ -57,7 +57,7 @@ void conv1d(const short *data, const short *filter, short *map_out,const short *
                     sum += mult;
                 }
             }
-            sum = add_overflow_free(sum, bias[w_n]);
+            sum = sum + bias[w_n];
             if (sum < 0 && relu)
                 sum = 0; // Relu
             mem2d(map_out, output_len, w_n, start_index/strides) = (short) sum;
@@ -83,7 +83,7 @@ void max1d(const short *data, short *map_out, const int input_len, const int inp
 
 void skip_add(const short *data, short *map_out, int input_len) {
     for (int i = 0; i < input_len; i++){
-        map_out[i] = add_overflow_free(map_out[i], data[i]);
+        map_out[i] += data[i];
     }
 
 }
@@ -91,26 +91,14 @@ void skip_add(const short *data, short *map_out, int input_len) {
 short add_overflow_free(int var0, short var1){
     int sum = var0 + var1;
     if (sum > (1<<15)){
-//        printf("Overflow %d\n", sum);
         return (1<<15) -1;
     }else if (sum < -(1<< 15)){
-//        printf("Overflow %d\n", sum);
         return -(1<<15) +1;
     }
     else{
         return (short) sum;
     }
 }
-
-
-//void save_file(short *data, char *filename, int input_len) {
-//    FILE *fp;
-//    fp = fopen(filename, "w");
-//    for (int wi = 0; wi < input_len; wi++)
-//        fprintf(fp, "%d\n", data[wi]);
-//
-//    fclose(fp);
-//}
 
 short forward_propagation(short *data) {
     int depth_size[11] = {1, 64, 64, 64, 64, 128, 128, 256, 256, 512, 512};
