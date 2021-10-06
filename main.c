@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "gan.h"
+#include <unistd.h>
 
 
 // ===========================> Functions Prototype <===============================
@@ -22,13 +23,16 @@ int main() {
     ecg_input = input_array;
     short prediction[1568];
     for (int sample = 0; sample < 1568; sample++) {
-//        pre_processing(ecg_input + sample * 768, 768);
         clock_t begin = clock();
+        pre_processing(ecg_input + sample * 768, 768);
+        clock_t end_pre = clock();
+        printf("Preprocessing in %.1f ms\n", (double)(end_pre - begin) *1000.0/ CLOCKS_PER_SEC);
         short predict = forward_propagation(ecg_input + sample * 768);
+        prediction[sample] = predict;
         clock_t end = clock();
         double time_spent = (double)(end - begin) *1000.0/ CLOCKS_PER_SEC;
-        printf("%d: %d in %.1f ms\n", sample, predict, time_spent);
-        prediction[sample] = predict;
+        printf("Full Processing in %.1f ms\n", time_spent);
+        usleep((unsigned  int)(3000 - time_spent) * 1000);
     }
 //    save_file(prediction, "1568_short.txt", 1568);
     return 0;
@@ -36,9 +40,22 @@ int main() {
 
 
 void pre_processing(short* data, int input_len){
-    BWBandPass * filter = create_bw_band_pass_filter(6, 256, 0.67f, 40);
-    for (int i=0; i<input_len; i++)
-        data[i] = (short) bw_band_pass(filter, (float)data[i]);
+    BWBandPass * filter = create_bw_band_pass_filter(4);
+    int preprocessed_data [784];
+    for (int i=0; i<input_len; i++){
+        preprocessed_data[i] = (short) bw_band_pass(filter, data[i], preprocessed_data[i]);
+    }
+
+    short ma_data[784];
+    for (int i=0; i<input_len; i++){
+        int sum = 0;
+        for (int offset=-4; offset < 4; offset ++){
+            if (i+offset > 0 && i+ offset<784)
+                sum += preprocessed_data[i+offset];
+        }
+        ma_data[i] = (short)(sum >>3);
+    }
+    free_bw_band_pass(filter);
 }
 
 void conv1d(const short *data, const short *filter, short *map_out,const short *bias, const int filter_size,
