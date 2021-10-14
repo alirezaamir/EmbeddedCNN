@@ -24,4 +24,4 @@ make --file=Pulp.mk clean linker_cp all run
 
 ## Data files
 
-The input data is in [src/fcn.c](/src/fcn.c)
+The input data is in [src/fcn.c](https://c4science.ch/source/C_HW/browse/fcn_pulp/src/fcn.c)
