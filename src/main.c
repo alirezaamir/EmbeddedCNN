@@ -1,6 +1,7 @@
 #include "main.h"
 
-
+RT_L2_DATA int16_t intermediate_map[256*128];
+RT_L2_DATA rt_perf_t* perf;
 // ===========================> Functions Prototype <===============================
 void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, const signed char *bias, int32_t filter_size,
             int32_t input_len, int32_t input_depth, int32_t output_len, int32_t n_filter, int32_t strides, int32_t relu, int32_t padding);
@@ -17,10 +18,22 @@ int16_t forward_propagation(int16_t *data, int16_t *intermediate);
 
 int main()
 {
+#ifdef PRINT_INPUT    
     printf("Input Array : %x\n", input_array[0]);
+#endif    
     // int16_t* eeg_input = input_array;
+
+#ifdef RUN_PRINT_PROFILING    
+    profile_start(perf);
+#endif    
     int16_t predict = forward_propagation(input_array, intermediate_map);
+#ifdef RUN_PRINT_PROFILING        
+    profile_stop(perf);
+#endif    
+
+#ifdef PRINT_PREDICTION    
     printf("Prediction : %d\n", predict);
+#endif    
     return 0;
 }
 
@@ -48,14 +61,17 @@ void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, co
             if (sum < 0 && relu)
                 sum = 0; // Relu
                 if (sum > (1 << 15) ){
-                    printf("Overflow %d\n", sum);
                     sum = (1<<15) -1;
                 }else if (sum < -(1 << 15)){
-                    printf("Overflow %d\n", sum);
                     sum = -(1<<15) +1;
                 }
+#ifdef PRINT_SUM                
+                printf("Overflow %d\n", sum);
+#endif                
                 mem2d(map_out, output_len, w_n, start_index / strides) = (int16_t) sum;
+#ifdef PRINT_FC_OUT                
                 printf("FC out %d : %x\n", w_n, sum);
+#endif                
         }
     }
 }
@@ -68,7 +84,9 @@ void conv_max1d(const int16_t *data, const signed char *filter, int16_t *map_out
     int32_t mult;
     int32_t pad = padding ? filter_size / 2 : 0;
     for (int32_t w_n = 0; w_n < n_filter; w_n++) {
+#ifdef PRINT_CONV        
         printf("Conv Wn : %d\n", w_n);
+#endif
         int32_t maximum = NEG_INF;
         for (int32_t start_index = 0; start_index < input_len; start_index += strides) {
             sum = 0;
@@ -84,13 +102,14 @@ void conv_max1d(const int16_t *data, const signed char *filter, int16_t *map_out
             sum += bias[w_n];
             if (sum < 0 && relu)
                 sum = 0; // Relu
-                if (sum > (1 << 15) ){
-                    printf("Overflow %d\n", sum);
+                if (sum > (1 << 15) ){                    
                     sum = (1<<15) -1;
                 }else if (sum < -(1 << 15)){
-                    printf("Overflow %d\n", sum);
                     sum = -(1<<15) +1;
                 }
+#ifdef PRINT_SUM
+                printf("Overflow %d\n", sum);
+#endif                
                 if (sum > maximum) {
                     maximum = sum;
                 }
@@ -127,7 +146,9 @@ void conv_block(int32_t block, int16_t* layer_in, int16_t* conv1d_out){
     int32_t map_size[6] = {1024, 256, 64, 16, 1, 1};
     signed char* filter = conv1d_w[block];
     signed char* bias = conv1d_b[block];
+#ifdef PRINT_BLOCK
     printf("Block %d\n", block);
+#endif    
     conv_max1d(layer_in, filter, conv1d_out, bias, 3, map_size[block], depth_size[block], map_size[block+1],
                depth_size[block + 1], 1, 0, 1, 4);
 
