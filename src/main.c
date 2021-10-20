@@ -1,7 +1,12 @@
 #include "main.h"
 
 RT_L2_DATA int16_t intermediate_map[256*128];
-RT_L2_DATA rt_perf_t* perf;
+#ifdef PULP
+    RT_L2_DATA rt_perf_t* perf;
+#endif
+#ifdef HEEP
+    int kResultsIdx = 0;
+#endif
 // ===========================> Functions Prototype <===============================
 void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, const signed char *bias, int32_t filter_size,
             int32_t input_len, int32_t input_depth, int32_t output_len, int32_t n_filter, int32_t strides, int32_t relu, int32_t padding);
@@ -19,28 +24,51 @@ int16_t forward_propagation(int16_t *data, int16_t *intermediate);
 int main()
 {
 #ifdef HEEP
-    heep__fResetStatusRegister();
+    heep_fResetStatusRegister();
 #endif
 #ifdef SERIAL_AVAILABLE
     printf("Input Array : %x\n", input_array[0]);
 #endif
 
-#ifdef RUN_PRINT_PROFILING
+#ifdef PULP
     profile_start(perf);
 #endif
 
     // int16_t* eeg_input = input_array;
 #ifdef HEEP
-    #ifdef DATA_ADQUISITION
-        heep__fDmaCaptureFromAdc(
-            input_array, INPUT_LEN*sizeof(int16_t), CAPTURE_IDLE_CYCLES
+//    #ifdef DATA_ACQUISITION
+//        heep_fDmaCaptureFromAdc(
+//            input_array, INPUT_LEN*sizeof(int16_t), CAPTURE_IDLE_CYCLES
+//        );
+//        heep_fClockgate(heep_Eventunit_kDmaIntBit);
+//    #endif
+
+	#ifdef DATA_ACQUISITION
+	    // First capture
+//	    heep_ClockgatedDmaCaptureFromAdc(
+//	        input_array,
+//	        INPUT_LEN*sizeof(int16_t),
+//	        CAPTURE_IDLE_CYCLES
+//	    );
+        // Clear the previous interrupts
+        heep_Eventunit_ClearInterrupts(
+            heep_Eventunit_kDmaIntBit | heep_Eventunit_kTimerIntBit
         );
-        heep__fClockgate(heep__Eventunit__kDmaIntBit);
-    #endif
+        // Set a timer as watchdog
+        heep_StartTimer((dim_seconds + 1) * heep_kCpuFreq);
+        // Start capturing next window
+        heep_DmaCaptureFromAdc(
+            // &ecg_3l[overlap][0],
+            // NLEADS*(dim - overlap)*sizeof(int16_t),
+            input_array,
+            INPUT_LEN*sizeof(int16_t),
+            CAPTURE_IDLE_CYCLES
+        );
+	#endif
 #endif
     int16_t predict = forward_propagation(input_array, intermediate_map);
 
-#ifdef RUN_PRINT_PROFILING
+#ifdef PULP
     profile_stop(perf);
 #endif
 
@@ -49,8 +77,24 @@ int main()
 #endif
 
 #ifdef HEEP
-    heep__kResults[0] = predict;
-    heep__fSetStatusRegister();
+    heep_kResults[kResultsIdx++] = predict;
+    heep_fSetStatusRegister();
+
+    #ifdef DATA_ACQUISITION
+        #ifndef FAST_DATA_ACQUISITION
+            // Clockgate until the transfer is complete
+            uint32_t awokenBits = heep_Clockgate(
+                heep_Eventunit_kDmaIntBit | heep_Eventunit_kTimerIntBit
+            );
+            if (!(awokenBits & heep_Eventunit_kDmaIntBit)) {
+                // There was a problem with the adc
+                // Do something
+                heep_kResults[kResultsIdx++] = -2;
+                heep_kResults[kResultsIdx++] = awokenBits;
+                exit(2);
+            }
+        #endif
+    #endif
 #endif
 
 
@@ -80,19 +124,19 @@ void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, co
             if (sum < 0 && relu)
                 sum = 0; // Relu
             if (sum > (1 << 15) ){
-                #ifdef SERIAL_AVAILABLE
+                #ifdef PRINT_OVERFLOW
                     printf("Overflow %d\n", sum);
                 #endif
                 #ifdef HEEP
-                    heep__kResults[1000];
+                    heep_kResults[1000];
                 #endif
                     sum = (1<<15) -1;
             }else if (sum < -(1 << 15)){
-                #ifdef SERIAL_AVAILABLE
+                #ifdef PRINT_OVERFLOW
                     printf("Overflow %d\n", sum);
                 #endif
                 #ifdef HEEP
-                    heep__kResults[1000];
+                    heep_kResults[1000];
                 #endif
                     sum = -(1<<15) +1;
             }
@@ -101,7 +145,7 @@ void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, co
                 printf("FC out %d : %x\n", w_n, sum);
             #endif
             #ifdef HEEP
-                heep__kResults[resultsIdx++] = sum;
+                heep_kResults[resultsIdx++] = sum;
             #endif
         }
     }
@@ -131,19 +175,13 @@ void conv_max1d(const int16_t *data, const signed char *filter, int16_t *map_out
             if (sum < 0 && relu)
                 sum = 0; // Relu
             if (sum > (1 << 15) ){
-                #ifdef SERIAL_AVAILABLE
+                #ifdef PRINT_OVERFLOW
                     printf("Overflow %d\n", sum);
-                #endif
-                #ifdef HEEP
-                    heep__kResults[1000];
                 #endif
                     sum = (1<<15) -1;
             }else if (sum < -(1 << 15)){
-                #ifdef SERIAL_AVAILABLE
+                #ifdef PRINT_OVERFLOW
                     printf("Overflow %d\n", sum);
-                #endif
-                #ifdef HEEP
-                    heep__kResults[1000];
                 #endif
                 sum = -(1<<15) +1;
             }

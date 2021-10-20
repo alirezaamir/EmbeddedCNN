@@ -10,12 +10,19 @@
 
 #ifdef PULP
     #include "rt/rt_api.h"
+    #include "profile.h"
 #else
     #define RT_L2_DATA
 #endif
 #include <stdint.h>
 //#include "rt/rt_api.h"
-#include "profile.h"
+
+//====== DEFINE DATA SOURCE =====//
+#ifdef HEEP
+#define DATA_ACQUISITION
+	// #define FAST_DATA_ACQUISITION
+#endif
+
 #ifndef EPILEPSYGAN_GAN_H
 #define EPILEPSYGAN_GAN_H
 
@@ -49,7 +56,7 @@
 // #define PRINT_PREDICTION
 // #define PRINT_SUM
 // #define PRINT_FC_OUT
-// #define PRINT_CONV
+// #define PRINT_OVERFLOW
 // #define PRINT_BLOCK
 
 extern int8_t* conv1d_w[3];

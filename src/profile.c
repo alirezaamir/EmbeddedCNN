@@ -2,7 +2,6 @@
 #include "rt/rt_api.h"
 
 void profile_start(rt_perf_t *perf){
-#ifdef PULP
 		int id = rt_core_id();
 		if(id==0){
 			printf("\nstart profile FC\n");
@@ -29,11 +28,9 @@ void profile_start(rt_perf_t *perf){
 #endif
 		rt_perf_reset(&perf[id]);
 		rt_perf_start(&perf[id]);
-#endif
 }
 
 void profile_stop(rt_perf_t *perf){
-#ifdef PULP
     int id = rt_core_id();
 
     rt_perf_stop(&perf[id]);
@@ -61,8 +58,6 @@ void profile_stop(rt_perf_t *perf){
     #ifdef TCDM
             printf("[%d] RT_PERF_TCDM_CONT = %d\n", id, rt_perf_read (RT_PERF_TCDM_CONT));
     #endif
-
-#endif
 
 }
  
