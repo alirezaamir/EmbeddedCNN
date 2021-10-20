@@ -8,6 +8,14 @@
 #include "heep_riscv_sdk.h"
 #endif
 
+#ifdef PULP
+    #include "rt/rt_api.h"
+#else
+    #define RT_L2_DATA
+#endif
+#include <stdint.h>
+//#include "rt/rt_api.h"
+#include "profile.h"
 #ifndef EPILEPSYGAN_GAN_H
 #define EPILEPSYGAN_GAN_H
 
@@ -20,12 +28,6 @@
 
 #define mem2d(data,data_len,j,i)   data[((j)*(data_len))+(i)]
 #define mem3d(filter,filter_len,filter_depth,n,k,i)   filter[((n)*(filter_depth)+(k))*(filter_len)+(i)]
-
-extern __int8_t* conv1d_w[3];
-extern __int8_t* conv1d_b[3];
-extern __int8_t* dense_w[2];
-extern __int8_t* dense_b[2];
-extern __int8_t* bn[12];
 
 #ifdef HEEP
     #ifndef DATA_ADQUISITION
@@ -40,5 +42,20 @@ extern __int8_t* bn[12];
 #else
     extern int16_t input_array[INPUT_LEN];
 #endif
+
+// Printing output
+#define RUN_PRINT_PROFILING
+// #define PRINT_INPUT
+// #define PRINT_PREDICTION
+// #define PRINT_SUM
+// #define PRINT_FC_OUT
+// #define PRINT_CONV
+// #define PRINT_BLOCK
+
+extern int8_t* conv1d_w[3];
+extern int8_t* conv1d_b[3];
+extern int8_t* dense_w[2];
+extern int8_t* dense_b[2];
+extern int8_t* bn[12];
 
 #endif //EPILEPSYGAN_GAN_H

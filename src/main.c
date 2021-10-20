@@ -1,17 +1,18 @@
 #include "main.h"
 
-
+RT_L2_DATA int16_t intermediate_map[256*128];
+RT_L2_DATA rt_perf_t* perf;
 // ===========================> Functions Prototype <===============================
-void conv1d(const __int16_t *data, const __int8_t *filter, __int16_t *map_out, const __int8_t *bias, __int32_t filter_size,
-            __int32_t input_len, __int32_t input_depth, __int32_t output_len, __int32_t n_filter, __int32_t strides, __int32_t relu, __int32_t padding);
+void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, const signed char *bias, int32_t filter_size,
+            int32_t input_len, int32_t input_depth, int32_t output_len, int32_t n_filter, int32_t strides, int32_t relu, int32_t padding);
 
-void conv_max1d(const __int16_t *data, const __int8_t *filter, __int16_t *map_out, const __int8_t *bias, __int32_t filter_size,
-            __int32_t input_len, __int32_t input_depth, __int32_t output_len, __int32_t n_filter, __int32_t strides, __int32_t relu, __int32_t padding, __int32_t pool_size);
+void conv_max1d(const int16_t *data, const signed char *filter, int16_t *map_out, const signed char *bias, int32_t filter_size,
+                int32_t input_len, int32_t input_depth, int32_t output_len, int32_t n_filter, int32_t strides, int32_t relu, int32_t padding, int32_t pool_size);
 
-void batch_normalization(const __int16_t *data, const __int8_t *gamma, const __int8_t *beta, const __int8_t *mean, const __int8_t *var,
-                         __int16_t *map_out, __int32_t input_len, __int32_t input_depth);
+void batch_normalization(const int16_t *data, const signed char *gamma, const signed char *beta, const signed char *mean, const signed char *var,
+                         int16_t *map_out, int32_t input_len, int32_t input_depth);
 
-__int16_t forward_propagation(__int16_t *data);
+int16_t forward_propagation(int16_t *data, int16_t *intermediate);
 
 // =================================================================================
 
@@ -24,7 +25,9 @@ int main()
     printf("Input Array : %x\n", input_array[0]);
 #endif
 
-    fProfileStart();
+#ifdef RUN_PRINT_PROFILING
+    profile_start(perf);
+#endif
 
     // int16_t* eeg_input = input_array;
 #ifdef HEEP
@@ -37,20 +40,22 @@ int main()
 #endif
     int16_t predict = forward_propagation(input_array, intermediate_map);
 
-    unsigned cycles = fProfileStop();
-
-#ifndef HEEP
-    printf("Prediction : %d\n", predict);
-    printf("Cycles: %u\n", cycles);
+#ifdef RUN_PRINT_PROFILING
+    profile_stop(perf);
 #endif
+
+#ifdef PRINT_PREDICTION
+    printf("Prediction : %d\n", predict);
+#endif
+
 #ifdef HEEP
     heep__kResults[0] = predict;
     heep__fSetStatusRegister();
 #endif
+
+
     return 0;
 }
-
-
 
 
 void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, const signed char *bias, const int32_t filter_size,
@@ -153,18 +158,16 @@ void conv_max1d(const int16_t *data, const signed char *filter, int16_t *map_out
     }
 }
 
-
 void batch_normalization(const int16_t *data, const signed char *gamma, const signed char *beta, const signed char *mean, const signed char *var,
                          int16_t *map_out, const int32_t input_len, const int32_t input_depth) {
     for (int32_t start_index = 0; start_index < input_len; start_index++) {
         for (int32_t w_j = 0; w_j < input_depth; w_j++) {
             int16_t normalized = mem2d(data, input_len, w_j, start_index) -
-                                 ((int16_t) mean[w_j] << (NUM_FRACTION_DATA - NUM_FRACTION_BN));
+            ((int16_t) mean[w_j] << (NUM_FRACTION_DATA - NUM_FRACTION_BN));
             int16_t standardized = MUL(normalized, var[w_j], NUM_FRACTION_BN);
             int16_t new_standardized = MUL(standardized, gamma[w_j], NUM_FRACTION_BN);
-            mem2d(map_out, input_len, w_j, start_index) = (int16_t) (new_standardized +
-                                                                     ((int16_t) beta[w_j]
-                                                                             << (NUM_FRACTION_DATA - NUM_FRACTION_BN)));
+            mem2d(map_out, input_len, w_j, start_index) =
+                    (int16_t) (new_standardized + ((int16_t) beta[w_j] << (NUM_FRACTION_DATA - NUM_FRACTION_BN)));
         }
     }
 }
