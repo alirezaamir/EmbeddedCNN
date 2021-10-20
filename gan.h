@@ -3,6 +3,11 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef HEEP
+#include "heep_riscv_sdk.h"
+#endif
+
 #ifndef EPILEPSYGAN_GAN_H
 #define EPILEPSYGAN_GAN_H
 
@@ -21,6 +26,19 @@ extern __int8_t* conv1d_b[3];
 extern __int8_t* dense_w[2];
 extern __int8_t* dense_b[2];
 extern __int8_t* bn[12];
-extern __int16_t input_array[];
+
+#ifdef HEEP
+    #ifndef DATA_ADQUISITION
+        extern int16_t input_array[];
+    #else
+        #define INPUT_LEN (23 * 1024)
+        #define SAMPLING_FREQ 256
+        #define CAPTURE_IDLE_CYCLES (heep__kCpuFreq * sizeof(int32_t) /  sizeof(int16_t) \
+                                      / (23 * SAMPLING_FREQ))
+        int16_t input_array[INPUT_LEN] __attribute__((aligned(4))) = {5};
+    #endif
+#else
+    extern int16_t input_array[INPUT_LEN];
+#endif
 
 #endif //EPILEPSYGAN_GAN_H
