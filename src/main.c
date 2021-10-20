@@ -1,4 +1,4 @@
-#include "gan.h"
+#include "main.h"
 
 
 // ===========================> Functions Prototype <===============================
