@@ -78,7 +78,7 @@ int main()
 
 #ifdef HEEP
     heep_kResults[kResultsIdx++] = predict;
-    heep_fSetStatusRegister();
+    heep_SetStatusRegister();
 
     #ifdef DATA_ACQUISITION
         #ifndef FAST_DATA_ACQUISITION
@@ -145,7 +145,7 @@ void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, co
                 printf("FC out %d : %x\n", w_n, sum);
             #endif
             #ifdef HEEP
-                heep_kResults[resultsIdx++] = sum;
+                heep_kResults[kResultsIdx++] = sum;
             #endif
         }
     }
