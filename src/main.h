@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define HEEP
 #define INPUT_LEN (23 * 1024)
 
 #ifdef HEEP
@@ -39,11 +40,11 @@
 #define mem3d(filter,filter_len,filter_depth,n,k,i)   filter[((n)*(filter_depth)+(k))*(filter_len)+(i)]
 
 #ifdef HEEP
-    #ifndef DATA_ADQUISITION
+    #ifndef DATA_ACQUISITION
         extern int16_t input_array[];
     #else
         #define SAMPLING_FREQ 256
-        #define CAPTURE_IDLE_CYCLES (heep__kCpuFreq * sizeof(int32_t) /  sizeof(int16_t) \
+        #define CAPTURE_IDLE_CYCLES (heep_kCpuFreq * sizeof(int32_t) /  sizeof(int16_t) \
                                       / (23 * SAMPLING_FREQ))
         int16_t input_array[INPUT_LEN] __attribute__((aligned(4))) = {5};
     #endif

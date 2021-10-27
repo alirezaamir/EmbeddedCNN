@@ -24,7 +24,7 @@ int16_t forward_propagation(int16_t *data, int16_t *intermediate);
 int main()
 {
 #ifdef HEEP
-    heep_fResetStatusRegister();
+    //heep_ResetStatusRegister();
 #endif
 #ifdef SERIAL_AVAILABLE
     printf("Input Array : %x\n", input_array[0]);
@@ -45,25 +45,19 @@ int main()
 
 	#ifdef DATA_ACQUISITION
 	    // First capture
-//	    heep_ClockgatedDmaCaptureFromAdc(
-//	        input_array,
-//	        INPUT_LEN*sizeof(int16_t),
-//	        CAPTURE_IDLE_CYCLES
-//	    );
+	    heep_ClockgatedDmaCaptureFromAdc(
+	        input_array,
+	        INPUT_LEN*sizeof(int16_t),
+	        CAPTURE_IDLE_CYCLES
+	    );
         // Clear the previous interrupts
         heep_Eventunit_ClearInterrupts(
             heep_Eventunit_kDmaIntBit | heep_Eventunit_kTimerIntBit
         );
-        // Set a timer as watchdog
+	// Set a timer as watchdog
+	int dim_seconds = 4;
         heep_StartTimer((dim_seconds + 1) * heep_kCpuFreq);
         // Start capturing next window
-        heep_DmaCaptureFromAdc(
-            // &ecg_3l[overlap][0],
-            // NLEADS*(dim - overlap)*sizeof(int16_t),
-            input_array,
-            INPUT_LEN*sizeof(int16_t),
-            CAPTURE_IDLE_CYCLES
-        );
 	#endif
 #endif
     int16_t predict = forward_propagation(input_array, intermediate_map);
@@ -127,25 +121,16 @@ void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, co
                 #ifdef PRINT_OVERFLOW
                     printf("Overflow %d\n", sum);
                 #endif
-                #ifdef HEEP
-                    heep_kResults[1000];
-                #endif
                     sum = (1<<15) -1;
             }else if (sum < -(1 << 15)){
                 #ifdef PRINT_OVERFLOW
                     printf("Overflow %d\n", sum);
-                #endif
-                #ifdef HEEP
-                    heep_kResults[1000];
                 #endif
                     sum = -(1<<15) +1;
             }
             mem2d(map_out, output_len, w_n, start_index / strides) = (int16_t) sum;
             #ifdef SERIAL_AVAILABLE
                 printf("FC out %d : %x\n", w_n, sum);
-            #endif
-            #ifdef HEEP
-                heep_kResults[kResultsIdx++] = sum;
             #endif
         }
     }
