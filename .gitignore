@@ -1,5 +1,8 @@
 build/
+heep_build/
+*.txt
 cmake* 
 outputs
 .idea
 a.out
+.dat
