@@ -5,7 +5,6 @@
 #include <stdlib.h>
 
 #define HEEP
-#define INPUT_LEN (23 * 1024)
 
 #ifdef HEEP
 #include "heep_riscv_sdk.h"
@@ -43,9 +42,9 @@
     #ifndef DATA_ACQUISITION
         extern int16_t input_array[];
     #else
+        #define INPUT_LEN (23 * 1024)
         #define SAMPLING_FREQ 256
-        #define CAPTURE_IDLE_CYCLES (heep_kCpuFreq * sizeof(int32_t) /  sizeof(int16_t) \
-                                      / (23 * SAMPLING_FREQ))
+        #define CAPTURE_IDLE_CYCLES (heep_kCpuFreq / (23 * SAMPLING_FREQ))
         int16_t input_array[INPUT_LEN] __attribute__((aligned(4))) = {5};
     #endif
 #else

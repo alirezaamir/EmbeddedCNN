@@ -50,16 +50,32 @@ int main()
 	        INPUT_LEN*sizeof(int16_t),
 	        CAPTURE_IDLE_CYCLES
 	    );
+	heep_kResults[kResultsIdx++] = 10;
         // Clear the previous interrupts
         heep_Eventunit_ClearInterrupts(
             heep_Eventunit_kDmaIntBit | heep_Eventunit_kTimerIntBit
         );
+	heep_kResults[kResultsIdx++] = 100;
 	// Set a timer as watchdog
 	int dim_seconds = 4;
         heep_StartTimer((dim_seconds + 1) * heep_kCpuFreq);
+	heep_kResults[kResultsIdx++] = 1000;
         // Start capturing next window
+        //heep_DmaCaptureFromAdc(
+            // &ecg_3l[overlap][0],
+            // NLEADS*(dim - overlap)*sizeof(int16_t),
+        //    input_array,
+        //    INPUT_LEN*sizeof(int16_t),
+        //    CAPTURE_IDLE_CYCLES
+        //);
+	heep_kResults[kResultsIdx++] = 10000;
+	//for (int heep_idx = -1; heep_idx < 90; heep_idx ++)
+                //heep_kResults[kResultsIdx++] = heep_idx;
 	#endif
 #endif
+	//for (int heep_idx = -1; heep_idx < 90; heep_idx ++)
+	        //heep_kResults[kResultsIdx++] = heep_idx;
+    heep_kResults[kResultsIdx++] = 100000;
     int16_t predict = forward_propagation(input_array, intermediate_map);
 
 #ifdef PULP
@@ -71,7 +87,7 @@ int main()
 #endif
 
 #ifdef HEEP
-    heep_kResults[kResultsIdx++] = predict;
+    heep_kResults[kResultsIdx++] = predict + 100;
     heep_SetStatusRegister();
 
     #ifdef DATA_ACQUISITION
@@ -83,8 +99,8 @@ int main()
             if (!(awokenBits & heep_Eventunit_kDmaIntBit)) {
                 // There was a problem with the adc
                 // Do something
-                heep_kResults[kResultsIdx++] = -2;
-                heep_kResults[kResultsIdx++] = awokenBits;
+                //heep_kResults[kResultsIdx++] = -2;
+                //heep_kResults[kResultsIdx++] = awokenBits;
                 exit(2);
             }
         #endif
@@ -121,16 +137,25 @@ void conv1d(const int16_t *data, const signed char *filter, int16_t *map_out, co
                 #ifdef PRINT_OVERFLOW
                     printf("Overflow %d\n", sum);
                 #endif
+                #ifdef HEEP
+                    //heep_kResults[1000];
+                #endif
                     sum = (1<<15) -1;
             }else if (sum < -(1 << 15)){
                 #ifdef PRINT_OVERFLOW
                     printf("Overflow %d\n", sum);
+                #endif
+                #ifdef HEEP
+                    //heep_kResults[1000];
                 #endif
                     sum = -(1<<15) +1;
             }
             mem2d(map_out, output_len, w_n, start_index / strides) = (int16_t) sum;
             #ifdef SERIAL_AVAILABLE
                 printf("FC out %d : %x\n", w_n, sum);
+            #endif
+            #ifdef HEEP
+                //heep_kResults[kResultsIdx++] = sum;
             #endif
         }
     }
@@ -222,21 +247,25 @@ int16_t forward_propagation(int16_t *data, int16_t *intermediate) {
     int32_t fc_map_size[6] = {16, 1, 1};
     int16_t* intermediate_map0 = intermediate;
     int16_t* intermediate_map1 = data;
+    //heep_kResults[kResultsIdx++] = 11;
 
     //  ************  BLOCK 0  ************ //
     int16_t *layer_out = intermediate_map0;
     int16_t *layer_in = intermediate_map1;
     conv_block(0, layer_in, layer_out);
+    //heep_kResults[kResultsIdx++] = 110;
 
     //  ************  BLOCK 1  ************ //
     layer_out = intermediate_map1;
     layer_in = intermediate_map0;
     conv_block(1, layer_in, layer_out);
+    //heep_kResults[kResultsIdx++] = 1110;
 
     //  ************  BLOCK 2  ************ //
     layer_out = intermediate_map0;
     layer_in = intermediate_map1;
     conv_block(2, layer_in, layer_out);
+    //heep_kResults[kResultsIdx++] = 11110;
 
     //  ************  FC 0  ************ //
     layer_out = intermediate_map1;
@@ -244,6 +273,8 @@ int16_t forward_propagation(int16_t *data, int16_t *intermediate) {
     conv1d(layer_in, dense_w[0], layer_out, dense_b[0], fc_map_size[0],fc_map_size[0],
            fc_depth_size[0], fc_map_size[1], fc_depth_size[1], fc_map_size[0],
            1, 0);
+    for(int i=0; i< fc_depth_size[1]; i++)
+	    heep_kResults[kResultsIdx++] = intermediate_map1[i];
 
     //  ************  FC 1  ************ //
     layer_out = intermediate_map0;
@@ -251,6 +282,7 @@ int16_t forward_propagation(int16_t *data, int16_t *intermediate) {
     conv1d(layer_in, dense_w[1], layer_out, dense_b[1], fc_map_size[1],fc_map_size[1],
            fc_depth_size[1], fc_map_size[2], fc_depth_size[2], fc_map_size[1],
            0, 0);
+    heep_kResults[kResultsIdx++] = 111100;
 
     if (layer_out[0] > layer_out[1])
         return 0;
